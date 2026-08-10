@@ -33,6 +33,7 @@ async function getAllReviews(queryOptions = {}, currentUser = null) {
   const {
     roomId,
     studentId,
+    bookingId,
     rating,
     from,
     to,
@@ -47,6 +48,10 @@ async function getAllReviews(queryOptions = {}, currentUser = null) {
 
   if (roomId && ObjectId.isValid(roomId)) {
     filter.roomId = new ObjectId(roomId);
+  }
+
+  if (bookingId && ObjectId.isValid(bookingId)) {
+    filter.bookingId = new ObjectId(bookingId);
   }
 
   if (currentUser && currentUser.userType === 'student') {
