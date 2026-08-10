@@ -40,3 +40,21 @@ export function parseISOToLocalMinutes(dateInput) {
   const d = new Date(dateInput);
   return d.getHours() * 60 + d.getMinutes();
 }
+
+export function createISOFromDateAndTime(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return null;
+  const dateObj = new Date(`${dateStr}T${timeStr}:00+07:00`);
+  if (isNaN(dateObj.getTime())) return null;
+  return dateObj.toISOString();
+}
+
+export function generateTimeOptions(startHour = 7, endHour = 22, stepMinutes = 30) {
+  const options = [];
+  for (let min = startHour * 60; min <= endHour * 60; min += stepMinutes) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    const timeStr = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    options.push({ label: timeStr, value: timeStr });
+  }
+  return options;
+}

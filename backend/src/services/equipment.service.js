@@ -3,15 +3,26 @@ const { getDatabase } = require('../config/db');
 const collections = require('../config/collections');
 const AppError = require('../utils/appError');
 
-async function getActiveEquipmentReservations() {
+async function getActiveEquipmentReservations(startTime, endTime) {
   const db = getDatabase();
-  const now = new Date();
+  let filter = {};
 
-  const activeBookings = await db.collection(collections.BOOKINGS).find({
-    status: { $in: ['approved', 'in_use'] },
-    startTime: { $lte: now },
-    endTime: { $gt: now }
-  }).toArray();
+  if (startTime && endTime) {
+    filter = {
+      status: { $in: ['approved', 'in_use'] },
+      startTime: { $lt: endTime },
+      endTime: { $gt: startTime }
+    };
+  } else {
+    const now = new Date();
+    filter = {
+      status: { $in: ['approved', 'in_use'] },
+      startTime: { $lte: now },
+      endTime: { $gt: now }
+    };
+  }
+
+  const activeBookings = await db.collection(collections.BOOKINGS).find(filter).toArray();
 
   const reservedMap = {};
 
@@ -50,11 +61,28 @@ async function getAllEquipment(queryOptions = {}) {
     search,
     status,
     lowStock,
+    startTime,
+    endTime,
     page = 1,
     limit = 10,
     sortBy = 'createdAt',
     sortOrder = 'desc'
   } = queryOptions;
+
+  if ((startTime && !endTime) || (!startTime && endTime)) {
+    throw new AppError('Cả startTime và endTime phải cùng được cung cấp', 400);
+  }
+
+  let reqStart = null;
+  let reqEnd = null;
+
+  if (startTime && endTime) {
+    reqStart = new Date(startTime);
+    reqEnd = new Date(endTime);
+    if (isNaN(reqStart.getTime()) || isNaN(reqEnd.getTime()) || reqStart >= reqEnd) {
+      throw new AppError('startTime và endTime không hợp lệ hoặc startTime phải nhỏ hơn endTime', 400);
+    }
+  }
 
   const filter = {};
 
@@ -86,7 +114,7 @@ async function getAllEquipment(queryOptions = {}) {
     .sort({ [sortField]: sortDir })
     .toArray();
 
-  const reservedMap = await getActiveEquipmentReservations();
+  const reservedMap = await getActiveEquipmentReservations(reqStart, reqEnd);
   let enrichedList = allMatchingDocs.map(doc => enrichEquipment(doc, reservedMap));
 
   if (lowStock !== undefined && lowStock !== null && lowStock !== '') {
