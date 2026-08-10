@@ -1,4 +1,5 @@
 const roomService = require('../services/room.service');
+const reviewService = require('../services/review.service');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/appError');
 
@@ -15,6 +16,19 @@ const getRoomById = asyncHandler(async (req, res) => {
   res.status(200).json({
     data: room,
     message: 'Lấy thông tin phòng thành công'
+  });
+});
+
+const getRoomReviews = asyncHandler(async (req, res) => {
+  const result = await reviewService.getRoomReviews(req.params.id, req.query);
+  res.status(200).json({
+    data: {
+      room: result.room,
+      averageRating: result.averageRating,
+      reviewCount: result.reviewCount,
+      reviews: result.reviews
+    },
+    pagination: result.pagination
   });
 });
 
@@ -154,6 +168,7 @@ const deleteRoom = asyncHandler(async (req, res) => {
 module.exports = {
   getRooms,
   getRoomById,
+  getRoomReviews,
   createRoom,
   updateRoom,
   deleteRoom

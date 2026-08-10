@@ -2,6 +2,7 @@ const { ObjectId } = require('mongodb');
 const { getDatabase } = require('../config/db');
 const collections = require('../config/collections');
 const AppError = require('../utils/appError');
+const reviewService = require('./review.service');
 
 async function getAllRooms(queryOptions = {}) {
   const db = getDatabase();
@@ -52,17 +53,26 @@ async function getAllRooms(queryOptions = {}) {
   const sort = { [sortField]: sortDir };
 
   const totalItems = await db.collection(collections.ROOMS).countDocuments(filter);
-  const rooms = await db.collection(collections.ROOMS)
+  const rawRooms = await db.collection(collections.ROOMS)
     .find(filter)
     .sort(sort)
     .skip(skip)
     .limit(limitNum)
     .toArray();
 
+  const enrichedRooms = await Promise.all(rawRooms.map(async r => {
+    const stats = await reviewService.getRoomRatingStats(r._id);
+    return {
+      ...r,
+      averageRating: stats.averageRating,
+      reviewCount: stats.reviewCount
+    };
+  }));
+
   const totalPages = Math.ceil(totalItems / limitNum) || 0;
 
   return {
-    rooms,
+    rooms: enrichedRooms,
     pagination: {
       page: pageNum,
       limit: limitNum,
@@ -84,7 +94,13 @@ async function getRoomById(id) {
     throw new AppError('Không tìm thấy phòng học', 404);
   }
 
-  return room;
+  const stats = await reviewService.getRoomRatingStats(room._id);
+
+  return {
+    ...room,
+    averageRating: stats.averageRating,
+    reviewCount: stats.reviewCount
+  };
 }
 
 async function createRoom(roomData) {
@@ -110,7 +126,7 @@ async function createRoom(roomData) {
   };
 
   const result = await db.collection(collections.ROOMS).insertOne(newRoom);
-  return { _id: result.insertedId, ...newRoom };
+  return { _id: result.insertedId, ...newRoom, averageRating: 0, reviewCount: 0 };
 }
 
 async function updateRoom(id, updateData) {
@@ -146,7 +162,13 @@ async function updateRoom(id, updateData) {
   );
 
   const updatedRoom = await db.collection(collections.ROOMS).findOne({ _id: targetId });
-  return updatedRoom;
+  const stats = await reviewService.getRoomRatingStats(targetId);
+
+  return {
+    ...updatedRoom,
+    averageRating: stats.averageRating,
+    reviewCount: stats.reviewCount
+  };
 }
 
 async function deleteRoom(id) {
