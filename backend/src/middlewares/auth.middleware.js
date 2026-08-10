@@ -7,6 +7,16 @@ function requireAuth(req, res, next) {
   next();
 }
 
+function requireStudent(req, res, next) {
+  if (!req.session || !req.session.userId || !req.session.userType) {
+    return next(new AppError('Bạn chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.', 401));
+  }
+  if (req.session.userType !== 'student') {
+    return next(new AppError('Chỉ sinh viên mới có quyền thực hiện thao tác này.', 403));
+  }
+  next();
+}
+
 function requireStaff(req, res, next) {
   if (!req.session || !req.session.userId || !req.session.userType) {
     return next(new AppError('Bạn chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.', 401));
@@ -19,5 +29,6 @@ function requireStaff(req, res, next) {
 
 module.exports = {
   requireAuth,
+  requireStudent,
   requireStaff
 };

@@ -7,6 +7,7 @@ const equipmentRouter = require('./routes/equipment.route');
 const authRouter = require('./routes/auth.route');
 const studentRouter = require('./routes/student.route');
 const staffRouter = require('./routes/staff.route');
+const bookingRouter = require('./routes/booking.route');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/rooms', roomRouter);
 app.use('/api/equipment', equipmentRouter);
 app.use('/api/students', studentRouter);
 app.use('/api/staff', staffRouter);
+app.use('/api/bookings', bookingRouter);
 
 app.use((req, res) => {
   res.status(404).json({
