@@ -1,38 +1,69 @@
 <template>
-  <main class="not-found-container">
-    <h1>404</h1>
-    <p>Trang bạn tìm kiếm không tồn tại.</p>
-    <router-link to="/" class="btn-home">Về trang chủ</router-link>
-  </main>
+  <div class="not-found-view">
+    <div class="not-found-card">
+      <h1 class="error-code">404</h1>
+      <h2 class="error-title">Không Tìm Thấy Trang</h2>
+      <p class="error-desc">Đường dẫn bạn truy cập không tồn tại hoặc đã bị di chuyển.</p>
+      <div class="actions">
+        <router-link to="/">
+          <AppButton variant="primary">Trở về Trang chủ</AppButton>
+        </router-link>
+        <router-link to="/admin">
+          <AppButton variant="secondary">Trang Quản trị</AppButton>
+        </router-link>
+      </div>
+    </div>
+  </div>
 </template>
 
+<script setup>
+import AppButton from '@/components/common/AppButton.vue';
+</script>
+
 <style scoped>
-.not-found-container {
+.not-found-view {
+  min-height: 80vh;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
-  gap: 16px;
+  padding: 32px 16px;
+}
+
+.not-found-card {
   text-align: center;
+  max-width: 480px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 48px 32px;
+  box-shadow: var(--shadow-md);
 }
 
-h1 {
-  font-size: 64px;
+.error-code {
+  font-size: 72px;
+  font-weight: 900;
+  color: var(--color-brand);
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.error-title {
+  font-size: 22px;
   font-weight: 700;
-  color: #111111;
+  color: var(--color-text-primary);
+  margin-bottom: 8px;
 }
 
-p {
-  color: #6b7280;
+.error-desc {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-bottom: 24px;
 }
 
-.btn-home {
-  background-color: #111111;
-  color: #ffffff;
-  padding: 8px 16px;
-  border-radius: 6px;
-  text-decoration: none;
-  font-weight: 500;
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 </style>
