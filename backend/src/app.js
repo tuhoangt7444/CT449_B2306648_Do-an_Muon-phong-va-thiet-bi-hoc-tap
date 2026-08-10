@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const { getDatabase } = require('./config/db');
 
 const app = express();
 
@@ -11,9 +12,20 @@ app.use(cors({
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {
+  let dbStatus = 'disconnected';
+  try {
+    const db = getDatabase();
+    if (db) {
+      dbStatus = 'connected';
+    }
+  } catch (err) {
+    dbStatus = 'disconnected';
+  }
+
   res.status(200).json({
     data: {
-      status: 'ok'
+      status: 'ok',
+      database: dbStatus
     },
     message: 'StudyHub CTU API is running'
   });
