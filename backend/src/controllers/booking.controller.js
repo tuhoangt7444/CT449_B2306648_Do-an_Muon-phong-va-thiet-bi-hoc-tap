@@ -77,6 +77,70 @@ const updateBooking = asyncHandler(async (req, res) => {
   });
 });
 
+const approveBooking = asyncHandler(async (req, res) => {
+  const currentUser = {
+    userId: req.session.userId,
+    userType: req.session.userType
+  };
+  const { staffNote } = req.body || {};
+  const booking = await bookingService.approveBooking(req.params.id, staffNote, currentUser);
+  res.status(200).json({
+    data: booking,
+    message: 'Duyệt yêu cầu mượn phòng thành công'
+  });
+});
+
+const rejectBooking = asyncHandler(async (req, res) => {
+  const currentUser = {
+    userId: req.session.userId,
+    userType: req.session.userType
+  };
+  const { rejectionReason, staffNote } = req.body || {};
+  const booking = await bookingService.rejectBooking(req.params.id, rejectionReason, staffNote, currentUser);
+  res.status(200).json({
+    data: booking,
+    message: 'Từ chối yêu cầu mượn phòng thành công'
+  });
+});
+
+const cancelBooking = asyncHandler(async (req, res) => {
+  const currentUser = {
+    userId: req.session.userId,
+    userType: req.session.userType
+  };
+  const { studentNote } = req.body || {};
+  const booking = await bookingService.cancelBooking(req.params.id, studentNote, currentUser);
+  res.status(200).json({
+    data: booking,
+    message: 'Hủy phiếu mượn phòng thành công'
+  });
+});
+
+const checkInBooking = asyncHandler(async (req, res) => {
+  const currentUser = {
+    userId: req.session.userId,
+    userType: req.session.userType
+  };
+  const { staffNote } = req.body || {};
+  const booking = await bookingService.checkInBooking(req.params.id, staffNote, currentUser);
+  res.status(200).json({
+    data: booking,
+    message: 'Xác nhận nhận phòng (check-in) thành công'
+  });
+});
+
+const completeBooking = asyncHandler(async (req, res) => {
+  const currentUser = {
+    userId: req.session.userId,
+    userType: req.session.userType
+  };
+  const booking = await bookingService.completeBooking(req.params.id, req.body || {}, currentUser);
+  res.status(200).json({
+    data: booking,
+    message: 'Hoàn thành lượt sử dụng phòng thành công'
+  });
+});
+
 const deleteBooking = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
@@ -93,5 +157,10 @@ module.exports = {
   getRoomSchedule,
   createBooking,
   updateBooking,
+  approveBooking,
+  rejectBooking,
+  cancelBooking,
+  checkInBooking,
+  completeBooking,
   deleteBooking
 };

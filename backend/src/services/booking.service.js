@@ -450,6 +450,315 @@ async function updateBooking(id, updateData, currentUser) {
   return await populateBookingDetails(updatedDoc);
 }
 
+async function approveBooking(id, staffNote, currentUser) {
+  if (!currentUser || currentUser.userType !== 'staff') {
+    throw new AppError('Chỉ nhân viên mới được quyền duyệt yêu cầu mượn phòng', 403);
+  }
+
+  if (!ObjectId.isValid(id)) {
+    throw new AppError('Mã phiếu mượn (ID) không hợp lệ', 400);
+  }
+
+  const db = getDatabase();
+  const targetId = new ObjectId(id);
+
+  const existing = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  if (!existing) {
+    throw new AppError('Không tìm thấy phiếu mượn', 404);
+  }
+
+  if (existing.status !== 'pending') {
+    throw new AppError('Chỉ có thể duyệt phiếu mượn ở trạng thái chờ duyệt (pending)', 409);
+  }
+
+  const now = new Date();
+  if (existing.endTime <= now) {
+    throw new AppError('Phiên mượn phòng đã hết hạn', 409);
+  }
+
+  const studentDoc = await db.collection(collections.STUDENTS).findOne({ _id: existing.studentId });
+  if (!studentDoc || studentDoc.status === 'inactive') {
+    throw new AppError('Tài khoản sinh viên đã bị ngưng hoạt động hoặc không tồn tại', 409);
+  }
+
+  const roomDoc = await db.collection(collections.ROOMS).findOne({ _id: existing.roomId });
+  if (!roomDoc || roomDoc.status !== 'available') {
+    throw new AppError('Phòng học hiện không khả dụng hoặc đang bảo trì', 409);
+  }
+
+  if (existing.numberOfPeople > roomDoc.capacity) {
+    throw new AppError('Số lượng người tham gia vượt quá sức chứa của phòng', 409);
+  }
+
+  await checkRoomOverlap(existing.roomId, existing.startTime, existing.endTime, targetId);
+  await checkEquipmentAvailability(existing.equipmentItems, existing.startTime, existing.endTime, targetId);
+
+  const setPayload = {
+    status: 'approved',
+    approvedBy: new ObjectId(currentUser.userId),
+    approvedAt: now,
+    updatedAt: now
+  };
+
+  if (typeof staffNote === 'string' && staffNote.trim() !== '') {
+    setPayload.staffNote = staffNote.trim();
+  }
+
+  await db.collection(collections.BOOKINGS).updateOne(
+    { _id: targetId },
+    { $set: setPayload }
+  );
+
+  const updatedDoc = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  return await populateBookingDetails(updatedDoc);
+}
+
+async function rejectBooking(id, rejectionReason, staffNote, currentUser) {
+  if (!currentUser || currentUser.userType !== 'staff') {
+    throw new AppError('Chỉ nhân viên mới được quyền từ chối phiếu mượn', 403);
+  }
+
+  if (!ObjectId.isValid(id)) {
+    throw new AppError('Mã phiếu mượn (ID) không hợp lệ', 400);
+  }
+
+  if (!rejectionReason || typeof rejectionReason !== 'string' || rejectionReason.trim() === '') {
+    throw new AppError('Lý do từ chối là bắt buộc và không được để rỗng', 400);
+  }
+
+  const db = getDatabase();
+  const targetId = new ObjectId(id);
+
+  const existing = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  if (!existing) {
+    throw new AppError('Không tìm thấy phiếu mượn', 404);
+  }
+
+  if (existing.status !== 'pending') {
+    throw new AppError('Chỉ có thể từ chối phiếu mượn ở trạng thái chờ duyệt (pending)', 409);
+  }
+
+  const now = new Date();
+  const setPayload = {
+    status: 'rejected',
+    rejectionReason: rejectionReason.trim(),
+    updatedAt: now
+  };
+
+  if (typeof staffNote === 'string' && staffNote.trim() !== '') {
+    setPayload.staffNote = staffNote.trim();
+  }
+
+  await db.collection(collections.BOOKINGS).updateOne(
+    { _id: targetId },
+    { $set: setPayload }
+  );
+
+  const updatedDoc = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  return await populateBookingDetails(updatedDoc);
+}
+
+async function cancelBooking(id, studentNote, currentUser) {
+  if (!currentUser || currentUser.userType !== 'student') {
+    throw new AppError('Nhân viên không được hủy phiếu mượn bằng API này', 403);
+  }
+
+  if (!ObjectId.isValid(id)) {
+    throw new AppError('Mã phiếu mượn (ID) không hợp lệ', 400);
+  }
+
+  const db = getDatabase();
+  const targetId = new ObjectId(id);
+
+  const existing = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  if (!existing) {
+    throw new AppError('Không tìm thấy phiếu mượn', 404);
+  }
+
+  if (existing.studentId.toString() !== currentUser.userId) {
+    throw new AppError('Bạn không có quyền hủy phiếu mượn này', 403);
+  }
+
+  if (!['pending', 'approved'].includes(existing.status)) {
+    throw new AppError('Chỉ có thể hủy phiếu mượn ở trạng thái chờ duyệt (pending) hoặc đã duyệt (approved)', 409);
+  }
+
+  const now = new Date();
+  if (now >= existing.startTime) {
+    throw new AppError('Không thể hủy phiếu mượn đã đến hoặc qua thời gian bắt đầu', 409);
+  }
+
+  const setPayload = {
+    status: 'cancelled',
+    cancelledAt: now,
+    updatedAt: now
+  };
+
+  if (typeof studentNote === 'string' && studentNote.trim() !== '') {
+    setPayload.studentNote = studentNote.trim();
+  }
+
+  await db.collection(collections.BOOKINGS).updateOne(
+    { _id: targetId },
+    { $set: setPayload }
+  );
+
+  const updatedDoc = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  return await populateBookingDetails(updatedDoc);
+}
+
+async function checkInBooking(id, staffNote, currentUser) {
+  if (!currentUser || currentUser.userType !== 'staff') {
+    throw new AppError('Chỉ nhân viên mới được quyền xác nhận nhận phòng (check-in)', 403);
+  }
+
+  if (!ObjectId.isValid(id)) {
+    throw new AppError('Mã phiếu mượn (ID) không hợp lệ', 400);
+  }
+
+  const db = getDatabase();
+  const targetId = new ObjectId(id);
+
+  const existing = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  if (!existing) {
+    throw new AppError('Không tìm thấy phiếu mượn', 404);
+  }
+
+  if (existing.status !== 'approved') {
+    throw new AppError('Chỉ có thể check-in phiếu mượn ở trạng thái đã duyệt (approved)', 409);
+  }
+
+  const now = new Date();
+  if (now >= existing.endTime) {
+    throw new AppError('Phiên mượn phòng đã kết thúc, không thể check-in', 409);
+  }
+
+  const setPayload = {
+    status: 'in_use',
+    checkedInAt: now,
+    updatedAt: now
+  };
+
+  if (typeof staffNote === 'string' && staffNote.trim() !== '') {
+    setPayload.staffNote = staffNote.trim();
+  }
+
+  await db.collection(collections.BOOKINGS).updateOne(
+    { _id: targetId },
+    { $set: setPayload }
+  );
+
+  const updatedDoc = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  return await populateBookingDetails(updatedDoc);
+}
+
+async function completeBooking(id, payload, currentUser) {
+  if (!currentUser || currentUser.userType !== 'staff') {
+    throw new AppError('Chỉ nhân viên mới được quyền hoàn thành phiếu mượn', 403);
+  }
+
+  if (!ObjectId.isValid(id)) {
+    throw new AppError('Mã phiếu mượn (ID) không hợp lệ', 400);
+  }
+
+  const db = getDatabase();
+  const targetId = new ObjectId(id);
+
+  const existing = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  if (!existing) {
+    throw new AppError('Không tìm thấy phiếu mượn', 404);
+  }
+
+  if (existing.status !== 'in_use') {
+    throw new AppError('Chỉ có thể hoàn thành phiếu mượn ở trạng thái đang sử dụng (in_use)', 409);
+  }
+
+  const { staffNote, equipmentItems } = payload || {};
+  const updatedBookingEquipmentItems = (existing.equipmentItems || []).map(item => ({ ...item }));
+
+  const equipmentUpdates = [];
+
+  if (Array.isArray(equipmentItems) && equipmentItems.length > 0) {
+    const seenEqIds = new Set();
+
+    for (const reportItem of equipmentItems) {
+      if (!reportItem.equipmentId || !ObjectId.isValid(reportItem.equipmentId)) {
+        throw new AppError('Mã thiết bị báo hư hỏng không hợp lệ', 400);
+      }
+      const eqIdStr = reportItem.equipmentId.toString();
+      if (seenEqIds.has(eqIdStr)) {
+        throw new AppError('Danh sách thiết bị báo hư hỏng không được chứa mã trùng lặp', 400);
+      }
+      seenEqIds.add(eqIdStr);
+
+      const targetBookingItem = updatedBookingEquipmentItems.find(item => item.equipmentId.toString() === eqIdStr);
+      if (!targetBookingItem) {
+        throw new AppError('Thiết bị báo hư hỏng không thuộc danh sách mượn của phiếu này', 400);
+      }
+
+      if (typeof reportItem.damagedQuantity !== 'number' || !Number.isInteger(reportItem.damagedQuantity) || reportItem.damagedQuantity < 0) {
+        throw new AppError('Số lượng hư hỏng phải là số nguyên không âm', 400);
+      }
+      const damagedQty = reportItem.damagedQuantity;
+      if (damagedQty > targetBookingItem.quantity) {
+        throw new AppError(`Số lượng hư hỏng (${damagedQty}) không được vượt quá số lượng mượn (${targetBookingItem.quantity})`, 400);
+      }
+
+      if (damagedQty > 0) {
+        const eqDoc = await db.collection(collections.EQUIPMENT).findOne({ _id: targetBookingItem.equipmentId });
+        if (!eqDoc) {
+          throw new AppError('Không tìm thấy thiết bị trong hệ thống', 404);
+        }
+
+        const currentTotalQty = Number(eqDoc.totalQuantity) || 0;
+        const currentDamagedQty = Number(eqDoc.damagedQuantity) || 0;
+
+        if (currentDamagedQty + damagedQty > currentTotalQty) {
+          throw new AppError(`Tổng số lượng hư hỏng sau cập nhật vượt quá tổng số lượng của thiết bị "${eqDoc.name}"`, 409);
+        }
+
+        equipmentUpdates.push({
+          equipmentId: targetBookingItem.equipmentId,
+          addDamagedQty: damagedQty
+        });
+      }
+
+      targetBookingItem.damagedQuantity = damagedQty;
+    }
+  }
+
+  const now = new Date();
+
+  for (const update of equipmentUpdates) {
+    await db.collection(collections.EQUIPMENT).updateOne(
+      { _id: update.equipmentId },
+      {
+        $inc: { damagedQuantity: update.addDamagedQty },
+        $set: { updatedAt: now }
+      }
+    );
+  }
+
+  const setPayload = {
+    status: 'completed',
+    equipmentItems: updatedBookingEquipmentItems,
+    completedAt: now,
+    updatedAt: now
+  };
+
+  if (typeof staffNote === 'string' && staffNote.trim() !== '') {
+    setPayload.staffNote = staffNote.trim();
+  }
+
+  await db.collection(collections.BOOKINGS).updateOne(
+    { _id: targetId },
+    { $set: setPayload }
+  );
+
+  const updatedDoc = await db.collection(collections.BOOKINGS).findOne({ _id: targetId });
+  return await populateBookingDetails(updatedDoc);
+}
+
 async function deleteBooking(id, currentUser) {
   if (!currentUser || currentUser.userType !== 'student') {
     throw new AppError('Nhân viên không được xóa phiếu mượn bằng API này', 403);
@@ -485,5 +794,10 @@ module.exports = {
   getRoomSchedule,
   createBooking,
   updateBooking,
+  approveBooking,
+  rejectBooking,
+  cancelBooking,
+  checkInBooking,
+  completeBooking,
   deleteBooking
 };
