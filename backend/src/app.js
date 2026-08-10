@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const { getDatabase } = require('./config/db');
 const roomRouter = require('./routes/room.route');
+const equipmentRouter = require('./routes/equipment.route');
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.use('/api/rooms', roomRouter);
+app.use('/api/equipment', equipmentRouter);
 
 app.use((req, res) => {
   res.status(404).json({
@@ -45,7 +47,7 @@ app.use((err, req, res, next) => {
   let message = err.message || 'Internal Server Error';
 
   if (err.code === 11000) {
-    message = 'Mã phòng đã tồn tại';
+    message = 'Mã dữ liệu đã tồn tại';
   }
 
   res.status(statusCode).json({
