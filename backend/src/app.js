@@ -1,8 +1,12 @@
 const express = require('express');
 const cors = require('cors');
+const session = require('express-session');
 const { getDatabase } = require('./config/db');
 const roomRouter = require('./routes/room.route');
 const equipmentRouter = require('./routes/equipment.route');
+const authRouter = require('./routes/auth.route');
+const studentRouter = require('./routes/student.route');
+const staffRouter = require('./routes/staff.route');
 
 const app = express();
 
@@ -12,6 +16,18 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'studyhub_ctu_secret_key_2026',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: false,
+    maxAge: 24 * 60 * 60 * 1000
+  }
+}));
 
 app.get('/api/health', (req, res) => {
   let dbStatus = 'disconnected';
@@ -33,8 +49,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+app.use('/api/auth', authRouter);
 app.use('/api/rooms', roomRouter);
 app.use('/api/equipment', equipmentRouter);
+app.use('/api/students', studentRouter);
+app.use('/api/staff', staffRouter);
 
 app.use((req, res) => {
   res.status(404).json({
@@ -47,7 +66,7 @@ app.use((err, req, res, next) => {
   let message = err.message || 'Internal Server Error';
 
   if (err.code === 11000) {
-    message = 'Mã dữ liệu đã tồn tại';
+    message = 'Mã hoặc Email dữ liệu đã tồn tại';
   }
 
   res.status(statusCode).json({

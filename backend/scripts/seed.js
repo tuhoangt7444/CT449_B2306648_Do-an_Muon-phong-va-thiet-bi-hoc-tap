@@ -1,4 +1,5 @@
 require('dotenv').config();
+const bcrypt = require('bcryptjs');
 const { connectToDatabase, closeDatabaseConnection } = require('../src/config/db');
 const collections = require('../src/config/collections');
 
@@ -27,6 +28,7 @@ async function seed() {
     await db.collection(collections.BOOKINGS).createIndex({ status: 1, startTime: 1 });
 
     const now = new Date();
+    const defaultHashedPassword = bcrypt.hashSync('123456', 10);
 
     const roomsData = [
       {
@@ -231,6 +233,7 @@ async function seed() {
         email: 'an.b2300001@student.ctu.edu.vn',
         phone: '0901234561',
         faculty: 'CNTT & TT',
+        password: defaultHashedPassword,
         status: 'active',
         createdAt: now,
         updatedAt: now
@@ -241,6 +244,7 @@ async function seed() {
         email: 'binh.b2300002@student.ctu.edu.vn',
         phone: '0901234562',
         faculty: 'CNTT & TT',
+        password: defaultHashedPassword,
         status: 'active',
         createdAt: now,
         updatedAt: now
@@ -251,6 +255,7 @@ async function seed() {
         email: 'cuong.b2300003@student.ctu.edu.vn',
         phone: '0901234563',
         faculty: 'Kinh tế',
+        password: defaultHashedPassword,
         status: 'active',
         createdAt: now,
         updatedAt: now
@@ -261,6 +266,7 @@ async function seed() {
         email: 'duc.b2300004@student.ctu.edu.vn',
         phone: '0901234564',
         faculty: 'Nông nghiệp',
+        password: defaultHashedPassword,
         status: 'active',
         createdAt: now,
         updatedAt: now
@@ -271,6 +277,7 @@ async function seed() {
         email: 'giang.b2300005@student.ctu.edu.vn',
         phone: '0901234565',
         faculty: 'Ngoại ngữ',
+        password: defaultHashedPassword,
         status: 'active',
         createdAt: now,
         updatedAt: now
@@ -281,6 +288,7 @@ async function seed() {
         email: 'hai.b2300006@student.ctu.edu.vn',
         phone: '0901234566',
         faculty: 'Luật',
+        password: defaultHashedPassword,
         status: 'active',
         createdAt: now,
         updatedAt: now
@@ -291,6 +299,7 @@ async function seed() {
         email: 'huong.b2300007@student.ctu.edu.vn',
         phone: '0901234567',
         faculty: 'Sư phạm',
+        password: defaultHashedPassword,
         status: 'active',
         createdAt: now,
         updatedAt: now
@@ -301,6 +310,7 @@ async function seed() {
         email: 'khoa.b2300008@student.ctu.edu.vn',
         phone: '0901234568',
         faculty: 'CNTT & TT',
+        password: defaultHashedPassword,
         status: 'active',
         createdAt: now,
         updatedAt: now
@@ -311,6 +321,7 @@ async function seed() {
         email: 'lan.b2300009@student.ctu.edu.vn',
         phone: '0901234569',
         faculty: 'Kỹ thuật',
+        password: defaultHashedPassword,
         status: 'active',
         createdAt: now,
         updatedAt: now
@@ -321,6 +332,7 @@ async function seed() {
         email: 'minh.b2300010@student.ctu.edu.vn',
         phone: '0901234570',
         faculty: 'Thủy sản',
+        password: defaultHashedPassword,
         status: 'inactive',
         createdAt: now,
         updatedAt: now
@@ -335,6 +347,7 @@ async function seed() {
         staffCode: 'ST001',
         fullName: 'Nguyễn Quản Lý',
         email: 'quanly@ctu.edu.vn',
+        password: defaultHashedPassword,
         role: 'manager',
         status: 'active',
         createdAt: now,
@@ -344,6 +357,7 @@ async function seed() {
         staffCode: 'ST002',
         fullName: 'Trần Nhân Viên',
         email: 'nhanvien@ctu.edu.vn',
+        password: defaultHashedPassword,
         role: 'staff',
         status: 'active',
         createdAt: now,
