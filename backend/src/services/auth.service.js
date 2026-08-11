@@ -12,6 +12,7 @@ async function loginStudent({ identifier, password }) {
   const student = await db.collection(collections.STUDENTS).findOne({
     $or: [
       { studentCode: cleanIdentifier },
+      { studentCode: cleanIdentifier.toUpperCase() },
       { email: lowerIdentifier }
     ]
   });
@@ -41,6 +42,7 @@ async function loginStaff({ identifier, password }) {
   const staff = await db.collection(collections.STAFF).findOne({
     $or: [
       { staffCode: cleanIdentifier },
+      { staffCode: cleanIdentifier.toUpperCase() },
       { email: lowerIdentifier }
     ]
   });

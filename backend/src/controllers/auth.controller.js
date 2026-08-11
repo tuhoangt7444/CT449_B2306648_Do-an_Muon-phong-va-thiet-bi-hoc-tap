@@ -2,51 +2,64 @@ const authService = require('../services/auth.service');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/appError');
 
-const studentLogin = asyncHandler(async (req, res) => {
-  const { studentCode, email, password } = req.body || {};
-  const identifier = studentCode || email;
+const studentLogin = asyncHandler(async (req, res, next) => {
+  const body = req.body || {};
+  const studentCode = body.studentCode || body.identifier || body.email || body.studentId || body.username || body.code;
+  const email = body.email;
+  const password = body.password;
+  const identifier = (studentCode || email || '').toString().trim();
 
-  if (!identifier || typeof identifier !== 'string' || identifier.trim() === '') {
+  if (!identifier) {
     throw new AppError('Mã sinh viên hoặc Email là bắt buộc', 400);
   }
-  if (!password || typeof password !== 'string' || password === '') {
+  if (!password || password.toString().trim() === '') {
     throw new AppError('Mật khẩu là bắt buộc', 400);
   }
 
-  const student = await authService.loginStudent({ identifier, password });
+  const student = await authService.loginStudent({ identifier, password: password.toString().trim() });
 
   req.session.userId = student._id.toString();
   req.session.userType = 'student';
+  delete req.session.role;
 
-  res.status(200).json({
-    data: student,
-    userType: 'student',
-    message: 'Đăng nhập sinh viên thành công'
+  req.session.save((err) => {
+    if (err) return next(err);
+    res.status(200).json({
+      data: student,
+      userType: 'student',
+      message: 'Đăng nhập sinh viên thành công'
+    });
   });
 });
 
-const staffLogin = asyncHandler(async (req, res) => {
-  const { staffCode, email, password } = req.body || {};
-  const identifier = staffCode || email;
+const staffLogin = asyncHandler(async (req, res, next) => {
+  const body = req.body || {};
+  const staffCode = body.staffCode || body.identifier || body.email || body.staffId || body.username || body.code;
+  const email = body.email;
+  const password = body.password;
+  const identifier = (staffCode || email || '').toString().trim();
 
-  if (!identifier || typeof identifier !== 'string' || identifier.trim() === '') {
+  if (!identifier) {
     throw new AppError('Mã nhân viên hoặc Email là bắt buộc', 400);
   }
-  if (!password || typeof password !== 'string' || password === '') {
+  if (!password || password.toString().trim() === '') {
     throw new AppError('Mật khẩu là bắt buộc', 400);
   }
 
-  const staff = await authService.loginStaff({ identifier, password });
+  const staff = await authService.loginStaff({ identifier, password: password.toString().trim() });
 
   req.session.userId = staff._id.toString();
   req.session.userType = 'staff';
   req.session.role = staff.role;
 
-  res.status(200).json({
-    data: staff,
-    userType: 'staff',
-    role: staff.role,
-    message: 'Đăng nhập nhân viên thành công'
+  req.session.save((err) => {
+    if (err) return next(err);
+    res.status(200).json({
+      data: staff,
+      userType: 'staff',
+      role: staff.role,
+      message: 'Đăng nhập nhân viên thành công'
+    });
   });
 });
 

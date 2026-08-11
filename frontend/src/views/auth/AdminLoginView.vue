@@ -9,7 +9,7 @@
       <form class="login-form" @submit.prevent="handleSubmit">
         <AppInput
           id="staffCode"
-          v-model="staffCode"
+          v-model="form.staffCode"
           label="Mã số nhân viên"
           placeholder="Ví dụ: ST001"
           required
@@ -17,7 +17,7 @@
 
         <AppInput
           id="password"
-          v-model="password"
+          v-model="form.password"
           type="password"
           label="Mật khẩu"
           placeholder="Nhập mật khẩu"
@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import AppInput from '@/components/common/AppInput.vue';
@@ -60,25 +60,38 @@ const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
-const staffCode = ref('');
-const password = ref('');
+const form = reactive({
+  staffCode: '',
+  password: ''
+});
+
 const errorMessage = ref('');
 
 async function handleSubmit() {
   errorMessage.value = '';
-  if (!staffCode.value.trim() || !password.value) {
-    errorMessage.value = 'Vui lòng nhập đầy đủ mã nhân viên và mật khẩu';
+
+  const cleanCode = (form.staffCode || '').trim();
+  const cleanPassword = (form.password || '').trim();
+
+  if (!cleanCode) {
+    errorMessage.value = 'Mã nhân viên là bắt buộc';
+    return;
+  }
+
+  if (!cleanPassword) {
+    errorMessage.value = 'Mật khẩu là bắt buộc';
     return;
   }
 
   try {
     await authStore.loginStaff({
-      staffCode: staffCode.value.trim(),
-      password: password.value
+      staffCode: cleanCode,
+      identifier: cleanCode,
+      password: cleanPassword
     });
 
     const redirectPath = route.query.redirect;
-    if (redirectPath && typeof redirectPath === 'string' && redirectPath.startsWith('/admin')) {
+    if (redirectPath && typeof redirectPath === 'string' && redirectPath.startsWith('/admin') && redirectPath !== '/admin/login') {
       router.push(redirectPath);
     } else {
       router.push('/admin');

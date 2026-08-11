@@ -3,17 +3,24 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 async function request(endpoint, options = {}) {
   const url = `${BASE_URL}${endpoint}`;
 
+  const { headers, body, ...restOptions } = options;
+
   const config = {
+    method: 'GET',
+    credentials: 'include',
+    ...restOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers
-    },
-    credentials: 'include',
-    ...options
+      ...(headers || {})
+    }
   };
 
-  if (options.body && typeof options.body === 'object') {
-    config.body = JSON.stringify(options.body);
+  if (body !== undefined && body !== null) {
+    if (typeof body === 'object') {
+      config.body = JSON.stringify(body);
+    } else {
+      config.body = body;
+    }
   }
 
   let response;

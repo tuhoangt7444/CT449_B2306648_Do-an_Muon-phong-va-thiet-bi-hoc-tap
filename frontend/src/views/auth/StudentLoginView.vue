@@ -9,7 +9,7 @@
       <form class="login-form" @submit.prevent="handleSubmit">
         <AppInput
           id="studentCode"
-          v-model="studentCode"
+          v-model="form.studentCode"
           label="Mã số sinh viên"
           placeholder="Ví dụ: B2300001"
           required
@@ -17,7 +17,7 @@
 
         <AppInput
           id="password"
-          v-model="password"
+          v-model="form.password"
           type="password"
           label="Mật khẩu"
           placeholder="Nhập mật khẩu"
@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import AppInput from '@/components/common/AppInput.vue';
@@ -60,25 +60,38 @@ const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
-const studentCode = ref('');
-const password = ref('');
+const form = reactive({
+  studentCode: '',
+  password: ''
+});
+
 const errorMessage = ref('');
 
 async function handleSubmit() {
   errorMessage.value = '';
-  if (!studentCode.value.trim() || !password.value) {
-    errorMessage.value = 'Vui lòng nhập đầy đủ mã sinh viên và mật khẩu';
+
+  const cleanCode = (form.studentCode || '').trim();
+  const cleanPassword = (form.password || '').trim();
+
+  if (!cleanCode) {
+    errorMessage.value = 'Mã sinh viên là bắt buộc';
+    return;
+  }
+
+  if (!cleanPassword) {
+    errorMessage.value = 'Mật khẩu là bắt buộc';
     return;
   }
 
   try {
     await authStore.loginStudent({
-      studentCode: studentCode.value.trim(),
-      password: password.value
+      studentCode: cleanCode,
+      identifier: cleanCode,
+      password: cleanPassword
     });
 
     const redirectPath = route.query.redirect;
-    if (redirectPath && typeof redirectPath === 'string' && redirectPath.startsWith('/')) {
+    if (redirectPath && typeof redirectPath === 'string' && redirectPath.startsWith('/') && redirectPath !== '/login' && redirectPath !== '/admin/login') {
       router.push(redirectPath);
     } else {
       router.push('/');

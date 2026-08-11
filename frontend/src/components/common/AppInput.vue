@@ -13,6 +13,7 @@
       :required="required"
       class="app-input"
       @input="$emit('update:modelValue', $event.target.value)"
+      @change="$emit('update:modelValue', $event.target.value)"
     />
     <p v-if="error" class="error-message">{{ error }}</p>
   </div>

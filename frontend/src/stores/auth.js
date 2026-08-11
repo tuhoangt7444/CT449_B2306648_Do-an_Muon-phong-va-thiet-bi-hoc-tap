@@ -15,7 +15,15 @@ export const useAuthStore = defineStore('auth', () => {
   const isManager = computed(() => userType.value === 'staff' && role.value === 'manager');
 
   function setUserState(userData, type, staffRole = null) {
-    user.value = userData;
+    if (userData) {
+      user.value = {
+        ...userData,
+        name: userData.fullName || userData.name || '',
+        department: userData.faculty || userData.department || ''
+      };
+    } else {
+      user.value = null;
+    }
     userType.value = type;
     role.value = staffRole || (userData ? userData.role : null);
     isAuthenticated.value = !!userData;
@@ -28,20 +36,30 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated.value = false;
   }
 
-  async function initialize() {
-    if (isInitialized.value) return;
+  async function fetchCurrentUser() {
     isLoading.value = true;
     try {
       const res = await api.get('/auth/me');
       if (res && res.data) {
-        setUserState(res.data, res.data.userType, res.data.role);
+        setUserState(res.data, res.userType, res.role);
       } else {
         clearUserState();
       }
+      return res;
     } catch (err) {
       clearUserState();
+      throw err;
     } finally {
       isLoading.value = false;
+    }
+  }
+
+  async function initialize() {
+    if (isInitialized.value) return;
+    try {
+      await fetchCurrentUser();
+    } catch (err) {
+    } finally {
       isInitialized.value = true;
     }
   }
@@ -94,6 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
     isStaff,
     isManager,
     initialize,
+    fetchCurrentUser,
     loginStudent,
     loginStaff,
     logout
