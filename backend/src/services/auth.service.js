@@ -4,66 +4,59 @@ const { getDatabase } = require('../config/db');
 const collections = require('../config/collections');
 const AppError = require('../utils/appError');
 
-async function loginStudent({ identifier, password }) {
+async function loginUnified({ identifier, password }) {
   const db = getDatabase();
-  const cleanIdentifier = identifier.trim();
-  const lowerIdentifier = cleanIdentifier.toLowerCase();
-
-  const student = await db.collection(collections.STUDENTS).findOne({
-    $or: [
-      { studentCode: cleanIdentifier },
-      { studentCode: cleanIdentifier.toUpperCase() },
-      { email: lowerIdentifier }
-    ]
-  });
-
-  if (!student) {
-    throw new AppError('Thông tin đăng nhập không chính xác', 401);
-  }
-
-  if (student.status === 'inactive') {
-    throw new AppError('Tài khoản của bạn đã bị khóa hoặc ngưng hoạt động', 403);
-  }
-
-  const isMatch = await bcrypt.compare(password, student.password);
-  if (!isMatch) {
-    throw new AppError('Thông tin đăng nhập không chính xác', 401);
-  }
-
-  delete student.password;
-  return student;
-}
-
-async function loginStaff({ identifier, password }) {
-  const db = getDatabase();
-  const cleanIdentifier = identifier.trim();
-  const lowerIdentifier = cleanIdentifier.toLowerCase();
-
+  const cleanCode = identifier.trim();
+  // có phải nhân viên trước hay không
   const staff = await db.collection(collections.STAFF).findOne({
     $or: [
-      { staffCode: cleanIdentifier },
-      { staffCode: cleanIdentifier.toUpperCase() },
-      { email: lowerIdentifier }
+      { staffCode: cleanCode },
+      { staffCode: cleanCode.toUpperCase() } // Kt chữ hoa thường
+    ]
+  });
+  // Nếu tìm thấy nhân viên, kiểm tra trạng thái và mật khẩu
+  if (staff) {
+    if (staff.status === 'inactive') {
+      throw new AppError('Tài khoản của bạn đã bị khóa hoặc ngưng hoạt động', 403);
+    }
+    const isMatch = await bcrypt.compare(password, staff.password);
+    if (isMatch) {
+      delete staff.password; //Xóa mk trên bộ nhớ trước khi trả về để tránh lộ mk
+      if (staff.buildingId) {
+        const building = await db.collection(collections.BUILDINGS).findOne(
+          { _id: staff.buildingId },
+          { projection: { buildingCode: 1, name: 1, location: 1 } }
+        );
+        staff.building = building;
+      } else {
+        staff.building = null;
+      }
+      // Trả về thông tin người dùng, loại người dùng, vai trò và buildingId
+      return { user: staff, userType: 'staff', role: staff.role, buildingId: staff.buildingId };
+    }
+  }
+  //Kiểm tra xem có phải sinh viên không
+  const student = await db.collection(collections.STUDENTS).findOne({
+    $or: [
+      { studentCode: cleanCode },
+      { studentCode: cleanCode.toUpperCase() }
     ]
   });
 
-  if (!staff) {
-    throw new AppError('Thông tin đăng nhập không chính xác', 401);
+  if (student) {
+    if (student.status === 'inactive') {
+      throw new AppError('Tài khoản của bạn đã bị khóa hoặc ngưng hoạt động', 403);
+    }
+    const isMatch = await bcrypt.compare(password, student.password);
+    if (isMatch) {
+      delete student.password;
+      return { user: student, userType: 'student', role: null, buildingId: null };
+    }
   }
 
-  if (staff.status === 'inactive') {
-    throw new AppError('Tài khoản của bạn đã bị khóa hoặc ngưng hoạt động', 403);
-  }
-
-  const isMatch = await bcrypt.compare(password, staff.password);
-  if (!isMatch) {
-    throw new AppError('Thông tin đăng nhập không chính xác', 401);
-  }
-
-  delete staff.password;
-  return staff;
+  throw new AppError('Mã số hoặc mật khẩu không chính xác', 401);
 }
-
+// Lấy thông tin người dùng hiện tại dựa trên userId và userType
 async function getCurrentUser(userId, userType) {
   if (!ObjectId.isValid(userId)) {
     throw new AppError('Mã người dùng không hợp lệ', 400);
@@ -82,11 +75,23 @@ async function getCurrentUser(userId, userType) {
   }
 
   delete user.password;
+
+  if (userType === 'staff') {
+    if (user.buildingId) {
+      const building = await db.collection(collections.BUILDINGS).findOne(
+        { _id: user.buildingId },
+        { projection: { buildingCode: 1, name: 1, location: 1 } }
+      );
+      user.building = building;
+    } else {
+      user.building = null;
+    }
+  }
+
   return user;
 }
 
 module.exports = {
-  loginStudent,
-  loginStaff,
+  loginUnified,
   getCurrentUser
 };

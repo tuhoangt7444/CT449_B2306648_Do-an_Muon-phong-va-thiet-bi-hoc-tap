@@ -99,7 +99,7 @@
 
       <div v-if="booking?.equipmentItems && booking.equipmentItems.length > 0" class="damaged-items-list">
         <div v-for="item in booking.equipmentItems" :key="item.equipmentId" class="damaged-item-row">
-          <span class="item-name">{{ item.equipment?.name || 'Thiết bị' }} (Đã mượn: {{ item.quantity }})</span>
+          <span class="item-name">{{ item.name || item.equipment?.name || 'Thiết bị không còn tồn tại' }} (Đã mượn: {{ item.quantity }})</span>
           <div class="input-qty-box">
             <label :for="`damaged-${item.equipmentId}`" class="sub-label">Số lượng hỏng:</label>
             <input

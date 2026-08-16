@@ -1,9 +1,17 @@
 const equipmentService = require('../services/equipment.service');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/appError');
+const { assertBuildingAccess } = require('../middlewares/auth.middleware');
 
 const getEquipment = asyncHandler(async (req, res) => {
-  const result = await equipmentService.getAllEquipment(req.query);
+  const query = { ...req.query };
+  if (req.session && req.session.userType === 'staff') {
+    if (req.session.role === 'building_manager') {
+      query.buildingId = req.session.buildingId;
+    }
+  }
+
+  const result = await equipmentService.getAllEquipment(query);
   res.status(200).json({
     data: result.equipment,
     pagination: result.pagination
@@ -11,7 +19,14 @@ const getEquipment = asyncHandler(async (req, res) => {
 });
 
 const getLowStockAlerts = asyncHandler(async (req, res) => {
-  const alerts = await equipmentService.getLowStockAlerts();
+  let targetBuildingId = req.query.buildingId;
+  if (req.session && req.session.userType === 'staff') {
+    if (req.session.role === 'building_manager') {
+      targetBuildingId = req.session.buildingId;
+    }
+  }
+
+  const alerts = await equipmentService.getLowStockAlerts(targetBuildingId);
   res.status(200).json({
     data: alerts,
     totalAlerts: alerts.length,
@@ -21,6 +36,10 @@ const getLowStockAlerts = asyncHandler(async (req, res) => {
 
 const getEquipmentById = asyncHandler(async (req, res) => {
   const equipment = await equipmentService.getEquipmentById(req.params.id);
+  if (req.session && req.session.userType === 'staff') {
+    assertBuildingAccess(req, equipment.buildingId);
+  }
+
   res.status(200).json({
     data: equipment,
     message: 'Lấy thông tin chi tiết thiết bị thành công'
@@ -28,13 +47,24 @@ const getEquipmentById = asyncHandler(async (req, res) => {
 });
 
 const createEquipment = asyncHandler(async (req, res) => {
-  const { equipmentCode, name, description, totalQuantity, damagedQuantity, lowStockThreshold, status } = req.body || {};
+  const { equipmentCode, name, description, buildingId, totalQuantity, damagedQuantity, lowStockThreshold, status } = req.body || {};
 
   if (!equipmentCode || typeof equipmentCode !== 'string' || equipmentCode.trim() === '') {
     throw new AppError('Mã thiết bị là bắt buộc và không được để rỗng', 400);
   }
   if (!name || typeof name !== 'string' || name.trim() === '') {
     throw new AppError('Tên thiết bị là bắt buộc và không được để rỗng', 400);
+  }
+
+  let targetBuildingId = buildingId;
+  if (req.session && req.session.userType === 'staff') {
+    if (req.session.role === 'building_manager') {
+      targetBuildingId = req.session.buildingId;
+    }
+  }
+
+  if (!targetBuildingId) {
+    throw new AppError('Vui lòng chọn tòa nhà cho thiết bị mới', 400);
   }
 
   const totalQtyNum = Number(totalQuantity);
@@ -74,6 +104,7 @@ const createEquipment = asyncHandler(async (req, res) => {
     equipmentCode: equipmentCode.trim(),
     name: name.trim(),
     description: typeof description === 'string' ? description.trim() : '',
+    buildingId: targetBuildingId,
     totalQuantity: totalQtyNum,
     damagedQuantity: damagedQtyNum,
     lowStockThreshold: thresholdNum,
@@ -88,8 +119,13 @@ const createEquipment = asyncHandler(async (req, res) => {
 });
 
 const updateEquipment = asyncHandler(async (req, res) => {
+  const existingEquipment = await equipmentService.getEquipmentById(req.params.id);
+  if (req.session && req.session.userType === 'staff') {
+    assertBuildingAccess(req, existingEquipment.buildingId);
+  }
+
   const body = req.body || {};
-  const allowedKeys = ['equipmentCode', 'name', 'description', 'totalQuantity', 'damagedQuantity', 'lowStockThreshold', 'status'];
+  const allowedKeys = ['equipmentCode', 'name', 'description', 'buildingId', 'totalQuantity', 'damagedQuantity', 'lowStockThreshold', 'status'];
   const updateKeys = Object.keys(body).filter(key => allowedKeys.includes(key));
 
   if (updateKeys.length === 0) {
@@ -97,6 +133,16 @@ const updateEquipment = asyncHandler(async (req, res) => {
   }
 
   const payload = {};
+
+  if ('buildingId' in body) {
+    if (req.session.role === 'building_manager') {
+      if (body.buildingId && body.buildingId.toString() !== req.session.buildingId.toString()) {
+        throw new AppError('Quản lý tòa nhà không có quyền chuyển thiết bị sang tòa nhà khác', 403);
+      }
+    } else {
+      payload.buildingId = body.buildingId;
+    }
+  }
 
   if ('equipmentCode' in body) {
     if (typeof body.equipmentCode !== 'string' || body.equipmentCode.trim() === '') {
@@ -155,6 +201,11 @@ const updateEquipment = asyncHandler(async (req, res) => {
 });
 
 const deleteEquipment = asyncHandler(async (req, res) => {
+  const existingEquipment = await equipmentService.getEquipmentById(req.params.id);
+  if (req.session && req.session.userType === 'staff') {
+    assertBuildingAccess(req, existingEquipment.buildingId);
+  }
+
   await equipmentService.deleteEquipment(req.params.id);
   res.status(204).send();
 });

@@ -4,6 +4,7 @@ export const adminRoomService = {
   getRooms(params = {}, signal) {
     const query = new URLSearchParams();
     if (params.search) query.append('search', params.search.trim());
+    if (params.buildingId) query.append('buildingId', params.buildingId);
     if (params.status) query.append('status', params.status);
     if (params.minCapacity) query.append('minCapacity', params.minCapacity);
     if (params.facility) query.append('facility', params.facility);

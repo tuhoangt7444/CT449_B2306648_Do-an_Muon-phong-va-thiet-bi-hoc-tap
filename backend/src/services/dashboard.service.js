@@ -4,23 +4,39 @@ const collections = require('../config/collections');
 const AppError = require('../utils/appError');
 const equipmentService = require('./equipment.service');
 const reviewService = require('./review.service');
-
-async function getDashboardSummary() {
+// Lấy thông tin tổng quan cho dashboard, có thể lọc theo buildingId
+async function getDashboardSummary(buildingIdStr = null) {
   const db = getDatabase();
 
+  const roomFilter = { status: 'available' };
+  const bookingPendingFilter = { status: 'pending' };
+  const bookingInUseFilter = { status: 'in_use' };
+  const recentBookingFilter = {};
+
+  if (buildingIdStr && ObjectId.isValid(buildingIdStr)) {
+    const bId = new ObjectId(buildingIdStr);
+    roomFilter.buildingId = bId;
+    bookingPendingFilter.buildingId = bId;
+    bookingInUseFilter.buildingId = bId;
+    recentBookingFilter.buildingId = bId;
+  }
+
   const [activeRooms, pendingBookings, inUseBookings, allEquipmentAlerts, recentRawBookings] = await Promise.all([
-    db.collection(collections.ROOMS).countDocuments({ status: 'available' }),
-    db.collection(collections.BOOKINGS).countDocuments({ status: 'pending' }),
-    db.collection(collections.BOOKINGS).countDocuments({ status: 'in_use' }),
-    equipmentService.getLowStockAlerts(),
+    db.collection(collections.ROOMS).countDocuments(roomFilter),
+    db.collection(collections.BOOKINGS).countDocuments(bookingPendingFilter),
+    db.collection(collections.BOOKINGS).countDocuments(bookingInUseFilter),
+    equipmentService.getLowStockAlerts(buildingIdStr),
     db.collection(collections.BOOKINGS)
-      .find({})
+      .find(recentBookingFilter)
       .sort({ createdAt: -1 })
       .limit(5)
       .toArray()
   ]);
 
-  const allActiveEquipment = await equipmentService.getAllEquipment({ limit: 1000 });
+  const eqOptions = { limit: 1000 };
+  if (buildingIdStr) eqOptions.buildingId = buildingIdStr;
+
+  const allActiveEquipment = await equipmentService.getAllEquipment(eqOptions);
   let availableEquipmentSum = 0;
   if (allActiveEquipment && Array.isArray(allActiveEquipment.equipment)) {
     allActiveEquipment.equipment.forEach(item => {
@@ -37,7 +53,7 @@ async function getDashboardSummary() {
       const [student, room] = await Promise.all([
         db.collection(collections.STUDENTS).findOne(
           { _id: b.studentId },
-          { projection: { password: 0 } }
+          { projection: { studentCode: 1, fullName: 1, phone: 1, email: 1 } }
         ),
         db.collection(collections.ROOMS).findOne(
           { _id: b.roomId }
@@ -56,7 +72,16 @@ async function getDashboardSummary() {
     })
   );
 
+  let buildingInfo = null;
+  if (buildingIdStr && ObjectId.isValid(buildingIdStr)) {
+    buildingInfo = await db.collection(collections.BUILDINGS).findOne(
+      { _id: new ObjectId(buildingIdStr) },
+      { projection: { buildingCode: 1, name: 1, location: 1 } }
+    );
+  }
+
   return {
+    building: buildingInfo,
     activeRooms,
     availableEquipment: availableEquipmentSum,
     pendingBookings,
@@ -65,12 +90,16 @@ async function getDashboardSummary() {
     recentBookings: populatedRecentBookings
   };
 }
-
+// Lấy danh sách các phòng học, có thể lọc theo buildingId, và bổ sung thông tin tòa nhà và thống kê đánh giá
 async function getBookingsByStatus(queryOptions = {}) {
   const db = getDatabase();
-  const { from, to } = queryOptions;
+  const { from, to, buildingId } = queryOptions;
 
   const filter = {};
+  if (buildingId && ObjectId.isValid(buildingId)) {
+    filter.buildingId = new ObjectId(buildingId);
+  }
+
   if (from || to) {
     const timeFilter = {};
     if (from) {
@@ -109,7 +138,7 @@ async function getBookingsByStatus(queryOptions = {}) {
 }
 
 async function getBookingsByDay(queryOptions = {}) {
-  const { from, to } = queryOptions;
+  const { from, to, buildingId } = queryOptions;
 
   if (!from || !to) {
     throw new AppError('Tham số từ ngày (from) và đến ngày (to) là bắt buộc', 400);
@@ -137,12 +166,16 @@ async function getBookingsByDay(queryOptions = {}) {
   const rangeStart = new Date(`${from.split('T')[0]}T00:00:00.000Z`);
   const rangeEnd = new Date(`${to.split('T')[0]}T23:59:59.999Z`);
 
+  const matchFilter = {
+    createdAt: { $gte: rangeStart, $lte: rangeEnd }
+  };
+
+  if (buildingId && ObjectId.isValid(buildingId)) {
+    matchFilter.buildingId = new ObjectId(buildingId);
+  }
+
   const agg = await db.collection(collections.BOOKINGS).aggregate([
-    {
-      $match: {
-        createdAt: { $gte: rangeStart, $lte: rangeEnd }
-      }
-    },
+    { $match: matchFilter },
     {
       $group: {
         _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
@@ -172,13 +205,17 @@ async function getBookingsByDay(queryOptions = {}) {
 
 async function getPopularRooms(queryOptions = {}) {
   const db = getDatabase();
-  const { from, to, limit = 5 } = queryOptions;
+  const { from, to, buildingId, limit = 5 } = queryOptions;
 
   const limitNum = Math.min(20, Math.max(1, parseInt(limit, 10) || 5));
 
   const filter = {
     status: { $in: ['approved', 'in_use', 'completed'] }
   };
+
+  if (buildingId && ObjectId.isValid(buildingId)) {
+    filter.buildingId = new ObjectId(buildingId);
+  }
 
   if (from || to) {
     const timeFilter = {};
@@ -229,8 +266,8 @@ async function getPopularRooms(queryOptions = {}) {
   return popularRooms;
 }
 
-async function getEquipmentAlerts() {
-  return await equipmentService.getLowStockAlerts();
+async function getEquipmentAlerts(buildingId = null) {
+  return await equipmentService.getLowStockAlerts(buildingId);
 }
 
 module.exports = {

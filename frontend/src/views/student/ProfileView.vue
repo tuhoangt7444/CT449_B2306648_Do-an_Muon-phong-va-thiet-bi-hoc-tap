@@ -49,9 +49,6 @@
       </div>
 
       <div class="profile-actions">
-        <AppButton variant="secondary" @click="handleRefreshProfile">
-          Làm mới thông tin
-        </AppButton>
         <AppButton variant="danger" @click="handleLogout">
           Đăng xuất tài khoản
         </AppButton>
@@ -67,10 +64,6 @@ import AppButton from '@/components/common/AppButton.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
-
-async function handleRefreshProfile() {
-  await authStore.fetchCurrentUser();
-}
 
 async function handleLogout() {
   await authStore.logout();

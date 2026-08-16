@@ -105,8 +105,8 @@ const selectedEquipmentItems = computed(() => {
       const eqDoc = props.equipmentList.find(e => e._id === eqId);
       items.push({
         _id: eqId,
-        name: eqDoc ? eqDoc.name : 'Thiết bị',
-        equipmentCode: eqDoc ? eqDoc.equipmentCode : 'EQ',
+        name: eqDoc ? eqDoc.name : 'Thiết bị không còn khả dụng',
+        equipmentCode: eqDoc ? eqDoc.equipmentCode : 'N/A',
         selectedQty: qty
       });
     }

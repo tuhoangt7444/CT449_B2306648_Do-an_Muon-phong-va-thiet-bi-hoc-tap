@@ -12,7 +12,12 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isStudent = computed(() => userType.value === 'student');
   const isStaff = computed(() => userType.value === 'staff');
-  const isManager = computed(() => userType.value === 'staff' && role.value === 'manager');
+  const isSuperAdmin = computed(() => userType.value === 'staff' && role.value === 'super_admin');
+  const isBuildingManager = computed(() => userType.value === 'staff' && role.value === 'building_manager');
+  const isManager = computed(() => userType.value === 'staff' && (role.value === 'super_admin' || role.value === 'building_manager' || role.value === 'manager'));
+  
+  const buildingId = computed(() => user.value?.buildingId || user.value?.building?._id || null);
+  const building = computed(() => user.value?.building || null);
 
   function setUserState(userData, type, staffRole = null) {
     if (userData) {
@@ -82,7 +87,20 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const res = await api.post('/auth/staff/login', credentials);
       if (res && res.data) {
-        setUserState(res.data, 'staff', res.data.role);
+        setUserState(res.data, 'staff', res.role || res.data.role);
+      }
+      return res;
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  async function loginUnified(credentials) {
+    isLoading.value = true;
+    try {
+      const res = await api.post('/auth/login', credentials);
+      if (res && res.data) {
+        setUserState(res.data, res.userType, res.role || res.data.role);
       }
       return res;
     } finally {
@@ -110,11 +128,16 @@ export const useAuthStore = defineStore('auth', () => {
     isInitialized,
     isStudent,
     isStaff,
+    isSuperAdmin,
+    isBuildingManager,
     isManager,
+    buildingId,
+    building,
     initialize,
     fetchCurrentUser,
     loginStudent,
     loginStaff,
+    loginUnified,
     logout
   };
 });

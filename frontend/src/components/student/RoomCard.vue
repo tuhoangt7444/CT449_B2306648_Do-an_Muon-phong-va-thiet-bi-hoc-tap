@@ -17,6 +17,9 @@
       <div class="badge-overlay">
         <StatusBadge :status="room.status" />
       </div>
+      <div v-if="room.building" class="building-overlay font-bold">
+        Tòa {{ room.building.buildingCode }}
+      </div>
     </div>
 
     <div class="card-body">
@@ -32,7 +35,7 @@
         </span>
         <span class="meta-item">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-          {{ formatCapacity(room.capacity) }}
+          {{ formatCapacity(room.capacity, room.capacitySource, room.observedMinimumCapacity) }}
         </span>
       </div>
 
@@ -79,7 +82,7 @@ const props = defineProps({
 const router = useRouter();
 
 function isValidUrl(str) {
-  return typeof str === 'string' && (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('/'));
+  return typeof str === 'string' && (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('/') || str.startsWith('data:image/'));
 }
 
 function goDetail() {
@@ -139,6 +142,18 @@ function goDetail() {
   position: absolute;
   top: 12px;
   right: 12px;
+}
+
+.building-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(37, 99, 235, 0.9);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .card-body {

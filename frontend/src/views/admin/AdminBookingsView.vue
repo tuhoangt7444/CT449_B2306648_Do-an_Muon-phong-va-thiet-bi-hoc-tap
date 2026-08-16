@@ -90,7 +90,7 @@
               <td class="font-mono">#{{ (b._id || '').slice(-6).toUpperCase() }}</td>
               <td>
                 <div class="student-cell">
-                  <span class="student-name">{{ b.student?.name }}</span>
+                  <span class="student-name">{{ b.student?.fullName || b.student?.name || 'Không còn thông tin sinh viên' }}</span>
                   <span class="student-code">{{ b.student?.studentCode }}</span>
                 </div>
               </td>

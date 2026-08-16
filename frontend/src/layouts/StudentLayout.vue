@@ -3,6 +3,13 @@
     <header class="student-header">
       <div class="header-container">
         <router-link to="/" class="brand-logo">
+          <img
+            :src="logoUrl"
+            alt="StudyHub CTU Logo"
+            class="brand-logo-img"
+            @error="hasLogoError = true"
+            v-if="!hasLogoError"
+          />
           <span class="logo-text">StudyHub</span>
           <span class="logo-badge">CTU</span>
         </router-link>
@@ -44,10 +51,9 @@
 
     <footer class="student-footer">
       <div class="footer-container">
-        <p>© 2026 StudyHub CTU - Trường Đại học Cần Thơ. Đồ án môn CT449.</p>
+        <p>© 2026 StudyHub CTU - Đại học Cần Thơ. Đồ án môn CT449.</p>
         <div class="footer-links">
           <router-link to="/rooms">Phòng tự học</router-link>
-          <router-link to="/admin/login">Dành cho Nhân viên</router-link>
         </div>
       </div>
     </footer>
@@ -64,6 +70,8 @@ import AppButton from '@/components/common/AppButton.vue';
 const authStore = useAuthStore();
 const router = useRouter();
 const isMobileMenuOpen = ref(false);
+const hasLogoError = ref(false);
+const logoUrl = '/Logo-StudyHubCTU.png';
 
 function closeMobileMenu() {
   isMobileMenuOpen.value = false;
@@ -106,6 +114,13 @@ async function handleLogout() {
   align-items: center;
   gap: 6px;
   text-decoration: none;
+}
+
+.brand-logo-img {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  margin-right: 4px;
 }
 
 .logo-text {

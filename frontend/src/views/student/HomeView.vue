@@ -94,7 +94,7 @@ async function fetchFeaturedRooms() {
   loading.value = true;
   error.value = '';
   try {
-    const res = await roomService.getRooms({ status: 'available', limit: 3 });
+    const res = await roomService.getRooms({ status: 'available', limit: 9 });
     if (res && res.data) {
       featuredRooms.value = res.data;
     }

@@ -96,6 +96,16 @@ defineProps({
   background-color: var(--color-surface-hover);
 }
 
+.variant-success {
+  background-color: var(--color-success, #16a34a);
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.variant-success:hover:not(:disabled) {
+  background-color: #15803d;
+}
+
 .variant-danger {
   background-color: var(--color-danger);
   color: #ffffff;

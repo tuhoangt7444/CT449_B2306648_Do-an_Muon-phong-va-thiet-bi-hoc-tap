@@ -141,8 +141,10 @@
             v-if="startTimeISO && endTimeISO"
             :start-time-i-s-o="startTimeISO"
             :end-time-i-s-o="endTimeISO"
+            :building-id="room?.buildingId?._id ? room.buildingId._id.toString() : (room?.buildingId ? room.buildingId.toString() : (room?.building?._id ? room.building._id.toString() : ''))"
             :selected-equipment-map="form.equipmentMap"
             @update-equipment="handleEquipmentUpdate"
+            @equipment-loaded="handleEquipmentLoaded"
           />
 
           <div class="form-actions">
@@ -333,6 +335,10 @@ function validateAndGoStep2() {
 
 function goToStep(step) {
   currentStep.value = step;
+}
+
+function handleEquipmentLoaded(list) {
+  rawEquipmentList.value = Array.isArray(list) ? list : [];
 }
 
 async function submitBooking() {

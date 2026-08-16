@@ -2,67 +2,42 @@ const authService = require('../services/auth.service');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/appError');
 
-const studentLogin = asyncHandler(async (req, res, next) => {
+const login = asyncHandler(async (req, res, next) => {
   const body = req.body || {};
-  const studentCode = body.studentCode || body.identifier || body.email || body.studentId || body.username || body.code;
-  const email = body.email;
-  const password = body.password;
-  const identifier = (studentCode || email || '').toString().trim();
+  const code = (body.code || body.identifier || '').toString().trim();
+  const password = (body.password || '').toString().trim();
 
-  if (!identifier) {
-    throw new AppError('Mã sinh viên hoặc Email là bắt buộc', 400);
+  if (!code) {
+    throw new AppError('Mã số sinh viên là bắt buộc', 400);
   }
-  if (!password || password.toString().trim() === '') {
+  if (!password) {
     throw new AppError('Mật khẩu là bắt buộc', 400);
   }
-
-  const student = await authService.loginStudent({ identifier, password: password.toString().trim() });
-
-  req.session.userId = student._id.toString();
-  req.session.userType = 'student';
-  delete req.session.role;
-
+  // Gọi hàm loginUnified từ authService để xác thực người dùng
+  const result = await authService.loginUnified({ identifier: code, password });
+  // Lưu thông tin người dùng vào session
+  req.session.userId = result.user._id.toString();
+  req.session.userType = result.userType; //Lưu loại tài khoản
+  if (result.role) {
+    req.session.role = result.role;
+    req.session.buildingId = result.buildingId ? result.buildingId.toString() : null;
+  } else {
+    delete req.session.role;
+    delete req.session.buildingId;
+  }
+  // Lưu session và gửi phản hồi thành công
   req.session.save((err) => {
-    if (err) return next(err);
+    if (err) return next(err); // Xử lý lỗi khi lưu session
     res.status(200).json({
-      data: student,
-      userType: 'student',
-      message: 'Đăng nhập sinh viên thành công'
+      data: result.user,
+      userType: result.userType,
+      role: result.role || null,
+      buildingId: result.buildingId || null,
+      message: 'Đăng nhập thành công'
     });
   });
 });
-
-const staffLogin = asyncHandler(async (req, res, next) => {
-  const body = req.body || {};
-  const staffCode = body.staffCode || body.identifier || body.email || body.staffId || body.username || body.code;
-  const email = body.email;
-  const password = body.password;
-  const identifier = (staffCode || email || '').toString().trim();
-
-  if (!identifier) {
-    throw new AppError('Mã nhân viên hoặc Email là bắt buộc', 400);
-  }
-  if (!password || password.toString().trim() === '') {
-    throw new AppError('Mật khẩu là bắt buộc', 400);
-  }
-
-  const staff = await authService.loginStaff({ identifier, password: password.toString().trim() });
-
-  req.session.userId = staff._id.toString();
-  req.session.userType = 'staff';
-  req.session.role = staff.role;
-
-  req.session.save((err) => {
-    if (err) return next(err);
-    res.status(200).json({
-      data: staff,
-      userType: 'staff',
-      role: staff.role,
-      message: 'Đăng nhập nhân viên thành công'
-    });
-  });
-});
-
+// Lấy thông tin người dùng hiện tại
 const getMe = asyncHandler(async (req, res) => {
   if (!req.session || !req.session.userId || !req.session.userType) {
     throw new AppError('Bạn chưa đăng nhập. Vui lòng đăng nhập để tiếp tục.', 401);
@@ -70,19 +45,25 @@ const getMe = asyncHandler(async (req, res) => {
 
   try {
     const user = await authService.getCurrentUser(req.session.userId, req.session.userType);
+    if (req.session.userType === 'staff') {
+      req.session.role = user.role;
+      req.session.buildingId = user.buildingId ? user.buildingId.toString() : null;
+    }
+
     res.status(200).json({
       data: user,
       userType: req.session.userType,
       role: req.session.role || null,
+      buildingId: user.buildingId || null,
       message: 'Lấy thông tin người dùng hiện tại thành công'
     });
   } catch (err) {
-    req.session.destroy(() => {});
+    req.session.destroy(() => {}); // Xóa session nếu có lỗi xảy ra
     res.clearCookie('connect.sid');
     throw err;
   }
 });
-
+// Đăng xuất người dùng
 const logout = asyncHandler(async (req, res) => {
   if (req.session) {
     req.session.destroy(() => {
@@ -96,8 +77,7 @@ const logout = asyncHandler(async (req, res) => {
 });
 
 module.exports = {
-  studentLogin,
-  staffLogin,
+  login,
   getMe,
   logout
 };

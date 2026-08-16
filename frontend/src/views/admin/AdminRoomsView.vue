@@ -90,7 +90,7 @@
             <td class="font-mono font-bold">{{ room.roomCode }}</td>
             <td class="font-semibold">{{ room.name }}</td>
             <td class="text-muted">{{ room.location }}</td>
-            <td>{{ room.capacity }} người</td>
+            <td>{{ formatCapacity(room.capacity, room.capacitySource, room.observedMinimumCapacity) }}</td>
             <td>
               <div class="facilities-tags">
                 <span v-for="(fac, idx) in (room.facilities || []).slice(0, 3)" :key="idx" class="facility-chip">
@@ -121,11 +121,10 @@
       </table>
 
       <PaginationBar
-        :current-page="pagination.page"
+        :page="pagination.page"
         :total-pages="pagination.totalPages"
         :total-items="pagination.totalItems"
-        :limit="pagination.limit"
-        @page-change="handlePageChange"
+        @change-page="handlePageChange"
       />
     </div>
 
@@ -212,13 +211,34 @@
         </div>
 
         <div class="form-group">
-          <label class="app-label">Danh sách URL hình ảnh (Mỗi URL nhập một dòng)</label>
-          <textarea
-            v-model="imagesText"
-            rows="2"
-            class="app-textarea"
-            placeholder="https://example.com/image1.jpg"
-          ></textarea>
+          <label class="app-label">Hình ảnh phòng học (Tải tệp từ máy tính)</label>
+          <div class="file-upload-dropzone" @click="triggerFileInput">
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden-file-input"
+              @change="handleFileUpload"
+            />
+            <div class="upload-dropzone-content">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              <span class="upload-text">📁 Bấm vào đây để chọn tệp hình ảnh từ máy tính (PNG, JPG, WEBP)</span>
+            </div>
+          </div>
+
+          <div v-if="uploadedImages.length > 0" class="image-gallery-preview">
+            <div v-for="(imgUrl, idx) in uploadedImages" :key="idx" class="image-preview-thumb">
+              <img :src="imgUrl" alt="Hình ảnh phòng" class="thumb-img" />
+              <button type="button" class="remove-thumb-btn" title="Xóa ảnh này" @click.stop="removeUploadedImage(idx)">
+                ✕
+              </button>
+            </div>
+          </div>
         </div>
 
         <p v-if="formGeneralError" class="form-error-alert">{{ formGeneralError }}</p>
@@ -269,6 +289,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { adminRoomService } from '@/services/adminRoom';
 import { formatDateVN } from '@/utils/date';
+import { formatCapacity } from '@/utils/format';
 
 import AppInput from '@/components/common/AppInput.vue';
 import AppSelect from '@/components/common/AppSelect.vue';
@@ -417,6 +438,35 @@ const form = reactive({
 
 const facilitiesText = ref('');
 const imagesText = ref('');
+const fileInputRef = ref(null);
+const uploadedImages = ref([]);
+
+function triggerFileInput() {
+  if (fileInputRef.value) {
+    fileInputRef.value.click();
+  }
+}
+
+function handleFileUpload(e) {
+  const files = e.target.files;
+  if (!files || files.length === 0) return;
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (!file.type.startsWith('image/')) continue;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      uploadedImages.value.push(event.target.result);
+    };
+    reader.readAsDataURL(file);
+  }
+  e.target.value = '';
+}
+
+function removeUploadedImage(index) {
+  uploadedImages.value.splice(index, 1);
+}
 
 const formErrors = reactive({
   roomCode: '',
@@ -447,6 +497,7 @@ function openCreateModal() {
   form.status = 'available';
   facilitiesText.value = '';
   imagesText.value = '';
+  uploadedImages.value = [];
   clearFormErrors();
   isFormModalOpen.value = true;
 }
@@ -462,7 +513,8 @@ function openEditModal(room) {
   form.description = room.description || '';
   form.status = room.status || 'available';
   facilitiesText.value = (room.facilities || []).join('\n');
-  imagesText.value = (room.images || []).join('\n');
+  imagesText.value = '';
+  uploadedImages.value = Array.isArray(room.images) ? [...room.images] : [];
   clearFormErrors();
   isFormModalOpen.value = true;
 }
@@ -517,7 +569,7 @@ async function handleSaveRoom() {
     description: form.description ? form.description.trim() : '',
     status: form.status,
     facilities: parsedFacilities.value,
-    images: parsedImages.value
+    images: [...uploadedImages.value]
   };
 
   try {
@@ -824,6 +876,85 @@ onMounted(() => {
 .text-right {
   text-align: right;
 }
+
+.file-upload-dropzone {
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1rem;
+  text-align: center;
+  background-color: var(--color-surface-elevated);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.file-upload-dropzone:hover {
+  border-color: var(--color-brand);
+  background-color: var(--color-surface-hover);
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.upload-dropzone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-secondary);
+}
+
+.upload-text {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.image-gallery-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.image-preview-thumb {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-thumb-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.9);
+  color: white;
+  border: none;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease;
+}
+
+.remove-thumb-btn:hover {
+  transform: scale(1.1);
+  background: #dc2626;
+}
+
 
 .loading-wrapper, .error-wrapper, .empty-wrapper {
   padding: 40px 0;

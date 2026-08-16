@@ -37,12 +37,16 @@
           <span class="legend-color is-occupied"></span>
           <span>Đã giữ phòng (Đã duyệt / Đang sử dụng)</span>
         </div>
+        <div class="legend-item">
+          <span class="legend-color is-completed"></span>
+          <span>Đã sử dụng (Đã hoàn thành)</span>
+        </div>
       </div>
 
       <div v-if="pendingBookings.length > 0" class="pending-notice-box">
         <h4 class="pending-title">📌 Yêu cầu đang chờ duyệt (Không giữ phòng):</h4>
         <div class="pending-list">
-          <div v-for="pb in pendingBookings" :key="pb.bookingId" class="pending-item">
+          <div v-for="pb in pendingBookings" :key="pb._id || pb.bookingId" class="pending-item">
             <span class="pending-time">{{ formatTimeVN(pb.startTime) }} - {{ formatTimeVN(pb.endTime) }}</span>
             <span class="pending-badge">Đang chờ nhân viên xét duyệt — Khung giờ này vẫn khả dụng để gửi yêu cầu</span>
           </div>
@@ -62,7 +66,10 @@
           <div class="time-label">{{ slot.timeLabel }}</div>
           <div class="slot-bar">
             <div class="slot-status-text">
-              <span v-if="slot.status === 'occupied'" class="status-tag occupied">
+              <span v-if="slot.status === 'completed'" class="status-tag completed">
+                🏁 {{ slot.label }}
+              </span>
+              <span v-else-if="slot.status === 'approved' || slot.status === 'in_use' || slot.status === 'occupied'" class="status-tag occupied">
                 🔒 Đã giữ phòng ({{ slot.label }})
               </span>
               <span v-else class="status-tag available">
@@ -114,7 +121,9 @@ async function fetchSchedule() {
   error.value = '';
   try {
     const res = await roomService.getRoomSchedule(props.roomId, selectedDate.value);
-    if (res && res.data && Array.isArray(res.data.schedule)) {
+    if (res && res.data && Array.isArray(res.data)) {
+      rawSchedule.value = res.data;
+    } else if (res && res.data && Array.isArray(res.data.schedule)) {
       rawSchedule.value = res.data.schedule;
     } else {
       rawSchedule.value = [];
@@ -140,7 +149,7 @@ const pendingBookings = computed(() => {
 });
 
 const busyIntervals = computed(() => {
-  const busyList = rawSchedule.value.filter(b => b.status === 'approved' || b.status === 'in_use');
+  const busyList = rawSchedule.value.filter(b => b.status === 'approved' || b.status === 'in_use' || b.status === 'completed');
   const intervals = busyList.map(b => {
     const s = new Date(b.startTime);
     const e = new Date(b.endTime);
@@ -151,20 +160,7 @@ const busyIntervals = computed(() => {
     };
   }).sort((a, b) => a.startMin - b.startMin);
 
-  const merged = [];
-  for (const item of intervals) {
-    if (merged.length === 0) {
-      merged.push({ ...item });
-    } else {
-      const prev = merged[merged.length - 1];
-      if (item.startMin < prev.endMin) {
-        prev.endMin = Math.max(prev.endMin, item.endMin);
-      } else {
-        merged.push({ ...item });
-      }
-    }
-  }
-  return merged;
+  return intervals;
 });
 
 const timeSlots = computed(() => {
@@ -176,13 +172,21 @@ const timeSlots = computed(() => {
     const slotStartMin = h * 60;
     const slotEndMin = (h + 1) * 60;
 
-    let isOccupied = false;
-    let label = 'Đã đặt';
+    let slotStatus = 'available';
+    let label = 'Khung giờ trống';
 
     for (const busy of busyIntervals.value) {
       if (busy.startMin < slotEndMin && busy.endMin > slotStartMin) {
-        isOccupied = true;
-        label = busy.status === 'in_use' ? 'Đang sử dụng' : 'Đã duyệt';
+        if (busy.status === 'completed') {
+          slotStatus = 'completed';
+          label = 'Đã sử dụng (Đã hoàn thành)';
+        } else if (busy.status === 'in_use') {
+          slotStatus = 'in_use';
+          label = 'Đang sử dụng';
+        } else {
+          slotStatus = 'approved';
+          label = 'Đã duyệt';
+        }
         break;
       }
     }
@@ -190,7 +194,7 @@ const timeSlots = computed(() => {
     slots.push({
       hour: h,
       timeLabel,
-      status: isOccupied ? 'occupied' : 'available',
+      status: slotStatus,
       label
     });
   }
@@ -209,6 +213,7 @@ onMounted(() => {
   border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: var(--shadow-sm);
+  color: var(--color-text-primary);
 }
 
 .schedule-header {
@@ -286,6 +291,11 @@ onMounted(() => {
   border: 1px solid var(--color-danger-text);
 }
 
+.legend-color.is-completed {
+  background-color: var(--color-info-bg);
+  border: 1px solid var(--color-info-text);
+}
+
 .pending-notice-box {
   margin-bottom: 20px;
   padding: 14px 16px;
@@ -312,7 +322,6 @@ onMounted(() => {
   align-items: center;
   gap: 10px;
   font-size: 13px;
-
 }
 
 .pending-time {
@@ -354,9 +363,16 @@ onMounted(() => {
   background-color: var(--color-surface);
 }
 
-.slot-occupied {
+.slot-occupied,
+.slot-approved,
+.slot-in_use {
   background-color: var(--color-danger-bg);
-  border-color: var(--color-danger);
+  border-color: var(--color-danger-text);
+}
+
+.slot-completed {
+  background-color: var(--color-info-bg);
+  border-color: var(--color-info-text);
 }
 
 .time-label {
@@ -381,8 +397,15 @@ onMounted(() => {
   color: var(--color-success-text);
 }
 
-.status-tag.occupied {
+.status-tag.occupied,
+.status-tag.approved,
+.status-tag.in_use {
   color: var(--color-danger-text);
+  font-weight: 600;
+}
+
+.status-tag.completed {
+  color: var(--color-info-text);
   font-weight: 600;
 }
 

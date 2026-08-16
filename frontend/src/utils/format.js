@@ -5,7 +5,12 @@ export function formatRating(rating) {
   return Number(rating).toFixed(1);
 }
 
-export function formatCapacity(capacity) {
-  if (!capacity && capacity !== 0) return 'N/A';
-  return `${capacity} chỗ ngồi`;
+export function formatCapacity(capacity, capacitySource, observedMinimumCapacity) {
+  if (capacitySource === 'official' || (capacity !== undefined && capacity !== null && Number(capacity) > 0)) {
+    return `${capacity} người`;
+  }
+  if (capacitySource === 'observed_minimum' || (observedMinimumCapacity !== undefined && observedMinimumCapacity !== null && Number(observedMinimumCapacity) > 0)) {
+    return `Ít nhất ${observedMinimumCapacity} (Quan sát)`;
+  }
+  return 'Chưa xác minh';
 }

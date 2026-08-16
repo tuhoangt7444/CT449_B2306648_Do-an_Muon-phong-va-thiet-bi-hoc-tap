@@ -23,7 +23,7 @@ const statusMap = {
   completed: 'Hoàn thành',
   available: 'Khả dụng',
   maintenance: 'Bảo trì',
-  inactive: 'Ngưng hoạt động'
+  inactive: 'Chưa mở đăng ký'
 };
 
 const statusLabel = computed(() => statusMap[props.status] || props.status);

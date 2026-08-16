@@ -28,9 +28,12 @@
           <StatusBadge :status="booking.status" />
         </div>
 
-        <div v-if="canCancel" class="cancel-action-bar">
-          <AppButton variant="danger" size="sm" @click="showCancelModal = true">
+        <div v-if="canCancel || canReturnEarly" class="cancel-action-bar">
+          <AppButton v-if="canCancel" variant="danger" size="sm" @click="showCancelModal = true">
             Hủy yêu cầu mượn này
+          </AppButton>
+          <AppButton v-if="canReturnEarly" variant="success" size="sm" @click="showReturnModal = true">
+            🏁 Trả phòng sớm
           </AppButton>
         </div>
       </div>
@@ -93,7 +96,7 @@
             </div>
             <div v-else class="equipment-table">
               <div v-for="item in booking.equipmentItems" :key="item.equipmentId" class="equipment-row">
-                <span class="eq-name">{{ item.equipment?.name || 'Thiết bị' }} ({{ item.equipment?.equipmentCode }})</span>
+                <span class="eq-name">{{ item.name || item.equipment?.name || 'Thiết bị không còn tồn tại' }} ({{ item.equipmentCode || item.equipment?.equipmentCode || 'N/A' }})</span>
                 <div class="eq-qty-group">
                   <span class="eq-qty">Số lượng mượn: <strong>{{ item.quantity }}</strong></span>
                   <span v-if="booking.status === 'completed' && item.damagedQuantity > 0" class="eq-damaged">
@@ -149,6 +152,28 @@
         </AppButton>
       </template>
     </AppModal>
+
+    <!-- EARLY RETURN MODAL -->
+    <AppModal
+      :is-open="showReturnModal"
+      title="Xác Nhận Trả Phòng Sớm"
+      variant="success"
+      @close="showReturnModal = false"
+    >
+      <p>Bạn có chắc chắn muốn trả phòng <strong>{{ booking?.room?.name }}</strong> sớm?</p>
+      <p class="text-sm text-muted">Thao tác này sẽ kết thúc lượt sử dụng và giải phóng khung giờ còn lại cho sinh viên khác.</p>
+
+      <p v-if="returnError" class="modal-error">{{ returnError }}</p>
+
+      <template #footer>
+        <AppButton variant="secondary" :disabled="returning" @click="showReturnModal = false">
+          Hủy bỏ
+        </AppButton>
+        <AppButton variant="success" :loading="returning" @click="handleReturnEarly">
+          Xác nhận trả sớm
+        </AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>
 
@@ -180,6 +205,10 @@ const cancelReason = ref('');
 const canceling = ref(false);
 const cancelError = ref('');
 
+const showReturnModal = ref(false);
+const returning = ref(false);
+const returnError = ref('');
+
 const canCancel = computed(() => {
   if (!booking.value) return false;
   const isEligibleStatus = ['pending', 'approved'].includes(booking.value.status);
@@ -187,6 +216,18 @@ const canCancel = computed(() => {
   const startTime = new Date(booking.value.startTime).getTime();
   const now = new Date().getTime();
   return startTime > now;
+});
+
+const canReturnEarly = computed(() => {
+  if (!booking.value) return false;
+  if (booking.value.status === 'in_use') return true;
+  if (booking.value.status === 'approved') {
+    const now = new Date().getTime();
+    const start = new Date(booking.value.startTime).getTime();
+    const end = new Date(booking.value.endTime).getTime();
+    return now >= start && now < end;
+  }
+  return false;
 });
 
 async function fetchBookingDetail() {
@@ -242,6 +283,30 @@ async function handleCancelBooking() {
     }
   } finally {
     canceling.value = false;
+  }
+}
+
+async function handleReturnEarly() {
+  returning.value = true;
+  returnError.value = '';
+  try {
+    const res = await bookingService.returnBookingEarly(bookingId);
+    if (res && res.data) {
+      booking.value = res.data;
+      if (booking.value.status === 'completed') {
+        fetchReview();
+      }
+    }
+    showReturnModal.value = false;
+  } catch (err) {
+    if (err.status === 409) {
+      returnError.value = 'Trạng thái phiếu mượn vừa thay đổi hoặc đã hoàn thành.';
+      fetchBookingDetail();
+    } else {
+      returnError.value = err.message || 'Không thể thực hiện trả phòng sớm';
+    }
+  } finally {
+    returning.value = false;
   }
 }
 

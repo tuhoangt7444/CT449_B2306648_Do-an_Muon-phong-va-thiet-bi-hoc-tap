@@ -8,6 +8,7 @@ export const bookingService = {
   async getEquipment(params = {}) {
     const query = new URLSearchParams();
     if (params.search) query.append('search', params.search);
+    if (params.buildingId) query.append('buildingId', params.buildingId);
     if (params.status) query.append('status', params.status);
     if (params.startTime) query.append('startTime', params.startTime);
     if (params.endTime) query.append('endTime', params.endTime);
@@ -38,5 +39,9 @@ export const bookingService = {
 
   async cancelBooking(id, payload = {}) {
     return await api.patch(`/bookings/${id}/cancel`, payload);
+  },
+
+  async returnBookingEarly(id) {
+    return await api.patch(`/bookings/${id}/return`);
   }
 };

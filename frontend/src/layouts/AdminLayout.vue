@@ -5,8 +5,15 @@
     <aside class="admin-sidebar" :class="{ 'is-mobile-open': isMobileSidebarOpen }">
       <div class="sidebar-header">
         <router-link to="/admin" class="admin-brand">
+          <img
+            :src="logoUrl"
+            alt="StudyHub CTU Logo"
+            class="admin-logo-img"
+            @error="hasLogoError = true"
+            v-if="!hasLogoError"
+          />
           <span class="brand-name">StudyHub</span>
-          <span class="admin-tag">Admin</span>
+          <span class="admin-tag">{{ authStore.isSuperAdmin ? 'Super Admin' : 'Manager' }}</span>
         </router-link>
       </div>
 
@@ -17,6 +24,22 @@
           </svg>
           <span>Dashboard</span>
         </router-link>
+
+        <template v-if="authStore.isSuperAdmin">
+          <router-link to="/admin/buildings" active-class="is-active" class="sidebar-item" @click="closeSidebar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><path d="M10 22v-4h4v4"/>
+            </svg>
+            <span>Quản lý Tòa nhà</span>
+          </router-link>
+
+          <router-link to="/admin/building-managers" active-class="is-active" class="sidebar-item" @click="closeSidebar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span>Quản lý NV Tòa nhà</span>
+          </router-link>
+        </template>
 
         <router-link to="/admin/bookings" active-class="is-active" class="sidebar-item" @click="closeSidebar">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -37,20 +60,6 @@
             <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
           </svg>
           <span>Thiết bị</span>
-        </router-link>
-
-        <router-link to="/admin/students" active-class="is-active" class="sidebar-item" @click="closeSidebar">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          <span>Sinh viên</span>
-        </router-link>
-
-        <router-link to="/admin/calendar" active-class="is-active" class="sidebar-item" @click="closeSidebar">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>
-          </svg>
-          <span>Lịch mượn phòng</span>
         </router-link>
 
         <router-link to="/admin/reviews" active-class="is-active" class="sidebar-item" @click="closeSidebar">
@@ -82,7 +91,13 @@
           <div class="admin-user-info">
             <div class="user-meta">
               <span class="admin-name">{{ authStore.user?.name || authStore.user?.staffCode }}</span>
-              <span class="role-badge">{{ authStore.isManager ? 'Quản lý' : 'Nhân viên' }}</span>
+              <span class="role-badge">
+                <template v-if="authStore.isSuperAdmin">Super Admin</template>
+                <template v-else-if="authStore.user?.building?.buildingCode">
+                  QL Tòa {{ authStore.user.building.buildingCode }}
+                </template>
+                <template v-else>Quản lý Tòa nhà</template>
+              </span>
             </div>
             <AppButton size="sm" variant="secondary" @click="handleLogout">Đăng xuất</AppButton>
           </div>
@@ -107,6 +122,8 @@ const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 const isMobileSidebarOpen = ref(false);
+const hasLogoError = ref(false);
+const logoUrl = '/Logo-StudyHubCTU.png';
 
 function closeSidebar() {
   isMobileSidebarOpen.value = false;
@@ -114,11 +131,11 @@ function closeSidebar() {
 
 const pageTitles = {
   '/admin': 'Dashboard Thống Kê',
+  '/admin/buildings': 'Quản Lý Tòa Nhà',
+  '/admin/building-managers': 'Quản Lý Nhân Viên Tòa Nhà',
   '/admin/bookings': 'Quản Lý Yêu Cầu Mượn Phòng',
   '/admin/rooms': 'Quản Lý Phòng Học',
   '/admin/equipment': 'Quản Lý Thiết Bị Học Tập',
-  '/admin/students': 'Quản Lý Sinh Viên',
-  '/admin/calendar': 'Lịch Mượn Phòng Tổng Quan',
   '/admin/reviews': 'Quản Lý Đánh Giá Phòng'
 };
 
@@ -128,7 +145,7 @@ const currentPageTitle = computed(() => {
 
 async function handleLogout() {
   await authStore.logout();
-  router.push('/admin/login');
+  router.push('/login');
 }
 </script>
 
@@ -176,6 +193,12 @@ async function handleLogout() {
   align-items: center;
   gap: 8px;
   text-decoration: none;
+}
+
+.admin-logo-img {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
 }
 
 .brand-name {
@@ -300,7 +323,8 @@ async function handleLogout() {
 
 .role-badge {
   font-size: 11px;
-  color: var(--color-text-muted);
+  color: var(--color-brand);
+  font-weight: 600;
 }
 
 .admin-content {

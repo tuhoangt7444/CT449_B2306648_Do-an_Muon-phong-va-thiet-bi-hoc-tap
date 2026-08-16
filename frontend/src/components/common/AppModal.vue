@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="modelValue" class="modal-backdrop" @click="handleBackdropClick">
+      <div v-if="isVisible" class="modal-backdrop" @click="handleBackdropClick">
         <div
           class="modal-container"
           role="dialog"
@@ -33,9 +33,13 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, watch } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 
 const props = defineProps({
+  isOpen: {
+    type: Boolean,
+    default: false
+  },
   modelValue: {
     type: Boolean,
     default: false
@@ -50,10 +54,13 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:modelValue', 'close']);
+const emit = defineEmits(['update:modelValue', 'update:isOpen', 'close']);
+
+const isVisible = computed(() => props.isOpen || props.modelValue);
 
 function closeModal() {
   emit('update:modelValue', false);
+  emit('update:isOpen', false);
   emit('close');
 }
 
@@ -64,12 +71,12 @@ function handleBackdropClick() {
 }
 
 function handleKeydown(e) {
-  if (e.key === 'Escape' && props.modelValue) {
+  if (e.key === 'Escape' && isVisible.value) {
     closeModal();
   }
 }
 
-watch(() => props.modelValue, (val) => {
+watch(isVisible, (val) => {
   if (val) {
     document.body.style.overflow = 'hidden';
   } else {

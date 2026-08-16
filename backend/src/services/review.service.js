@@ -10,7 +10,7 @@ async function populateReviewDetails(review) {
   const [student, room, booking] = await Promise.all([
     db.collection(collections.STUDENTS).findOne(
       { _id: review.studentId },
-      { projection: { password: 0 } }
+      { projection: { studentCode: 1, fullName: 1 } }
     ),
     db.collection(collections.ROOMS).findOne(
       { _id: review.roomId }
@@ -20,10 +20,19 @@ async function populateReviewDetails(review) {
     )
   ]);
 
+  let building = null;
+  if (room && room.buildingId) {
+    building = await db.collection(collections.BUILDINGS).findOne(
+      { _id: room.buildingId },
+      { projection: { buildingCode: 1, name: 1, location: 1 } }
+    );
+  }
+
   return {
     ...review,
-    student: student || null,
+    student: student || { studentCode: '', fullName: 'Không còn thông tin sinh viên' },
     room: room || null,
+    building: building || null,
     booking: booking || null
   };
 }
@@ -32,6 +41,7 @@ async function getAllReviews(queryOptions = {}, currentUser = null) {
   const db = getDatabase();
   const {
     roomId,
+    buildingId,
     studentId,
     bookingId,
     rating,
@@ -45,6 +55,22 @@ async function getAllReviews(queryOptions = {}, currentUser = null) {
   } = queryOptions;
 
   const filter = {};
+
+  if (currentUser && currentUser.userType === 'staff') {
+    let targetBuildingId = null;
+    if (currentUser.role === 'building_manager') {
+      targetBuildingId = currentUser.buildingId;
+    } else if (buildingId && ObjectId.isValid(buildingId)) {
+      targetBuildingId = buildingId;
+    }
+
+    if (targetBuildingId) {
+      const bObjId = new ObjectId(targetBuildingId);
+      const bRooms = await db.collection(collections.ROOMS).find({ buildingId: bObjId }, { projection: { _id: 1 } }).toArray();
+      const bRoomIds = bRooms.map(r => r._id);
+      filter.roomId = { $in: bRoomIds };
+    }
+  }
 
   if (roomId && ObjectId.isValid(roomId)) {
     filter.roomId = new ObjectId(roomId);
@@ -135,7 +161,15 @@ async function getReviewById(id, currentUser = null) {
     throw new AppError('Không tìm thấy đánh giá', 404);
   }
 
-  return await populateReviewDetails(review);
+  const populated = await populateReviewDetails(review);
+
+  if (currentUser && currentUser.userType === 'staff' && currentUser.role === 'building_manager') {
+    if (!populated.room || !populated.room.buildingId || populated.room.buildingId.toString() !== currentUser.buildingId.toString()) {
+      throw new AppError('Truy cập bị từ chối. Đánh giá này thuộc phòng học của tòa nhà khác.', 403);
+    }
+  }
+
+  return populated;
 }
 
 async function createReview(data, currentUser) {
@@ -271,9 +305,11 @@ async function deleteReview(id, currentUser) {
       throw new AppError('Bạn không có quyền xóa đánh giá này', 403);
     }
   } else if (currentUser.userType === 'staff') {
-    const staffDoc = await db.collection(collections.STAFF).findOne({ _id: new ObjectId(currentUser.userId) });
-    if (!staffDoc || staffDoc.role !== 'manager') {
-      throw new AppError('Chỉ Quản lý (Manager) mới có quyền xóa đánh giá', 403);
+    if (currentUser.role === 'building_manager') {
+      const room = await db.collection(collections.ROOMS).findOne({ _id: existing.roomId });
+      if (!room || !room.buildingId || room.buildingId.toString() !== currentUser.buildingId.toString()) {
+        throw new AppError('Bạn không có quyền xóa đánh giá thuộc phòng học của tòa nhà khác', 403);
+      }
     }
   } else {
     throw new AppError('Bạn không có quyền xóa đánh giá này', 403);

@@ -4,6 +4,7 @@ export const adminReviewService = {
   getReviews(params = {}, signal) {
     const query = new URLSearchParams();
     if (params.search) query.append('search', params.search.trim());
+    if (params.buildingId) query.append('buildingId', params.buildingId);
     if (params.rating) query.append('rating', params.rating);
     if (params.roomId) query.append('roomId', params.roomId);
     if (params.studentId) query.append('studentId', params.studentId);

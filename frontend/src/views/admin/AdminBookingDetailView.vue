@@ -41,11 +41,15 @@
             <div class="info-list">
               <div class="info-row">
                 <span class="label">Họ và tên:</span>
-                <span class="value font-bold">{{ booking.student?.name }}</span>
+                <span class="value font-bold">{{ booking.student?.fullName || booking.student?.name || 'Không còn thông tin sinh viên' }}</span>
               </div>
               <div class="info-row">
                 <span class="label">Mã số sinh viên (MSSV):</span>
-                <span class="value font-mono">{{ booking.student?.studentCode }}</span>
+                <span class="value font-mono">{{ booking.student?.studentCode || 'Chưa cập nhật' }}</span>
+              </div>
+              <div class="info-row">
+                <span class="label">Số điện thoại:</span>
+                <span class="value">{{ booking.student?.phone || 'Chưa cập nhật' }}</span>
               </div>
               <div class="info-row">
                 <span class="label">Email liên hệ:</span>
@@ -104,7 +108,7 @@
             </div>
             <div v-else class="equipment-table">
               <div v-for="item in booking.equipmentItems" :key="item.equipmentId" class="equipment-row">
-                <span class="eq-name">{{ item.equipment?.name || 'Thiết bị' }} ({{ item.equipment?.equipmentCode }})</span>
+                <span class="eq-name">{{ item.name || item.equipment?.name || 'Thiết bị không còn tồn tại' }} ({{ item.equipmentCode || item.equipment?.equipmentCode || 'N/A' }})</span>
                 <div class="eq-qty-group">
                   <span class="eq-qty">Số lượng mượn: <strong>{{ item.quantity }}</strong></span>
                   <span v-if="booking.status === 'completed' && item.damagedQuantity > 0" class="eq-damaged">

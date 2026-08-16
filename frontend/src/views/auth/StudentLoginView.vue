@@ -2,16 +2,24 @@
   <div class="login-view">
     <div class="login-card">
       <div class="card-header">
-        <h2 class="card-title">Đăng Nhập Sinh Viên</h2>
-        <p class="card-subtitle">Hệ thống quản lý đăng ký mượn phòng tự học StudyHub CTU</p>
+        <div class="logo-wrapper" v-if="!hasLogoError">
+          <img
+            :src="logoUrl"
+            alt="StudyHub CTU Logo"
+            class="login-logo-img"
+            @error="hasLogoError = true"
+          />
+        </div>
+        <h2 class="card-title">Đăng Nhập StudyHub CTU</h2>
+        <p class="card-subtitle">Hệ thống quản lý đăng ký mượn phòng tự học & thiết bị</p>
       </div>
 
       <form class="login-form" @submit.prevent="handleSubmit">
         <AppInput
-          id="studentCode"
-          v-model="form.studentCode"
+          id="identifier"
+          v-model="form.identifier"
           label="Mã số sinh viên"
-          placeholder="Ví dụ: B2300001"
+          placeholder="MSSV (B2300001)"
           required
         />
 
@@ -32,19 +40,9 @@
           block
           :loading="authStore.isLoading"
         >
-          Đăng nhập
+          Đăng nhập hệ thống
         </AppButton>
       </form>
-
-      <div class="demo-box">
-        <p class="demo-title">Tài khoản thử nghiệm (Demo):</p>
-        <p class="demo-item"><span>Mã SV:</span> <code>B2300001</code> | <span>Mật khẩu:</span> <code>123456</code></p>
-        <p class="demo-item"><span>Mã SV:</span> <code>B2300002</code> | <span>Mật khẩu:</span> <code>123456</code></p>
-      </div>
-
-      <div class="card-footer">
-        <router-link to="/admin/login" class="admin-link">Đăng nhập dành cho Quản trị viên & Nhân viên</router-link>
-      </div>
     </div>
   </div>
 </template>
@@ -61,20 +59,22 @@ const router = useRouter();
 const route = useRoute();
 
 const form = reactive({
-  studentCode: '',
+  identifier: '',
   password: ''
 });
 
 const errorMessage = ref('');
+const hasLogoError = ref(false);
+const logoUrl = '/Logo-StudyHubCTU.png';
 
 async function handleSubmit() {
   errorMessage.value = '';
 
-  const cleanCode = (form.studentCode || '').trim();
+  const cleanIdentifier = (form.identifier || '').trim();
   const cleanPassword = (form.password || '').trim();
 
-  if (!cleanCode) {
-    errorMessage.value = 'Mã sinh viên là bắt buộc';
+  if (!cleanIdentifier) {
+    errorMessage.value = 'Mã số sinh viên hoặc Mã nhân viên là bắt buộc';
     return;
   }
 
@@ -84,15 +84,16 @@ async function handleSubmit() {
   }
 
   try {
-    await authStore.loginStudent({
-      studentCode: cleanCode,
-      identifier: cleanCode,
+    const res = await authStore.loginUnified({
+      identifier: cleanIdentifier,
       password: cleanPassword
     });
 
     const redirectPath = route.query.redirect;
-    if (redirectPath && typeof redirectPath === 'string' && redirectPath.startsWith('/') && redirectPath !== '/login' && redirectPath !== '/admin/login') {
+    if (redirectPath && typeof redirectPath === 'string') {
       router.push(redirectPath);
+    } else if (res.userType === 'staff') {
+      router.push('/admin');
     } else {
       router.push('/');
     }
@@ -124,6 +125,18 @@ async function handleSubmit() {
 .card-header {
   text-align: center;
   margin-bottom: 24px;
+}
+
+.logo-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.login-logo-img {
+  height: 54px;
+  width: auto;
+  object-fit: contain;
 }
 
 .card-title {

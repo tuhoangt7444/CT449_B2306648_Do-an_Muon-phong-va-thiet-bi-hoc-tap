@@ -5,7 +5,9 @@ const AppError = require('../utils/appError');
 const getReviews = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const result = await reviewService.getAllReviews(req.query, currentUser);
   res.status(200).json({
@@ -17,7 +19,9 @@ const getReviews = asyncHandler(async (req, res) => {
 const getReviewById = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const review = await reviewService.getReviewById(req.params.id, currentUser);
   res.status(200).json({
@@ -29,7 +33,9 @@ const getReviewById = asyncHandler(async (req, res) => {
 const createReview = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const review = await reviewService.createReview(req.body, currentUser);
   res.status(201).json({
@@ -41,7 +47,9 @@ const createReview = asyncHandler(async (req, res) => {
 const updateReview = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const review = await reviewService.updateReview(req.params.id, req.body, currentUser);
   res.status(200).json({
@@ -53,7 +61,9 @@ const updateReview = asyncHandler(async (req, res) => {
 const deleteReview = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   await reviewService.deleteReview(req.params.id, currentUser);
   res.status(204).send();

@@ -4,6 +4,7 @@ export const adminBookingService = {
   async getBookings(params = {}) {
     const query = new URLSearchParams();
     if (params.search) query.append('search', params.search);
+    if (params.buildingId) query.append('buildingId', params.buildingId);
     if (params.status) query.append('status', params.status);
     if (params.date) query.append('date', params.date);
     if (params.from) query.append('from', params.from);

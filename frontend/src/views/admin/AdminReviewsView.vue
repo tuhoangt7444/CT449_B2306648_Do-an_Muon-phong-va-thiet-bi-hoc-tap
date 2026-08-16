@@ -104,11 +104,10 @@
       </table>
 
       <PaginationBar
-        :current-page="pagination.page"
+        :page="pagination.page"
         :total-pages="pagination.totalPages"
         :total-items="pagination.totalItems"
-        :limit="pagination.limit"
-        @page-change="handlePageChange"
+        @change-page="handlePageChange"
       />
     </div>
 

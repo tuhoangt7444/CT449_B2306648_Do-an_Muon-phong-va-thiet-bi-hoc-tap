@@ -1,11 +1,13 @@
 const bookingService = require('../services/booking.service');
 const asyncHandler = require('../utils/asyncHandler');
 const AppError = require('../utils/appError');
-
+// Lấy danh sách các yêu cầu đặt phòng
 const getBookings = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const result = await bookingService.getAllBookings(req.query, currentUser);
   res.status(200).json({
@@ -13,11 +15,13 @@ const getBookings = asyncHandler(async (req, res) => {
     pagination: result.pagination
   });
 });
-
+// Lấy chi tiết yêu cầu đặt phòng theo id
 const getBookingById = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const booking = await bookingService.getBookingById(req.params.id, currentUser);
   res.status(200).json({
@@ -25,7 +29,7 @@ const getBookingById = asyncHandler(async (req, res) => {
     message: 'Lấy thông tin chi tiết phiếu mượn thành công'
   });
 });
-
+// Lấy lịch mượn phòng theo ngày
 const getRoomSchedule = asyncHandler(async (req, res) => {
   const schedule = await bookingService.getRoomSchedule(req.params.id, req.query.date);
   res.status(200).json({
@@ -33,7 +37,7 @@ const getRoomSchedule = asyncHandler(async (req, res) => {
     message: 'Lấy lịch mượn phòng thành công'
   });
 });
-
+// Sinh viên tạo yêu cầu đặt phòng
 const createBooking = asyncHandler(async (req, res) => {
   const { roomId, startTime, endTime, purpose, numberOfPeople } = req.body || {};
 
@@ -54,7 +58,9 @@ const createBooking = asyncHandler(async (req, res) => {
 
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
 
   const newBooking = await bookingService.createBooking(req.body, currentUser);
@@ -63,11 +69,13 @@ const createBooking = asyncHandler(async (req, res) => {
     message: 'Đăng ký mượn phòng thành công'
   });
 });
-
+// Sinh viên cập nhật yêu cầu đặt phòng
 const updateBooking = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
 
   const updatedBooking = await bookingService.updateBooking(req.params.id, req.body || {}, currentUser);
@@ -76,11 +84,25 @@ const updateBooking = asyncHandler(async (req, res) => {
     message: 'Cập nhật phiếu mượn thành công'
   });
 });
+// Sinh viên xóa yêu cầu đặt phòng
+const deleteBooking = asyncHandler(async (req, res) => {
+  const currentUser = {
+    userId: req.session.userId,
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
+  };
 
+  await bookingService.deleteBooking(req.params.id, currentUser);
+  res.status(204).send();
+});
+// Nhân viên duyệt yêu cầu đặt phòng  
 const approveBooking = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const { staffNote } = req.body || {};
   const booking = await bookingService.approveBooking(req.params.id, staffNote, currentUser);
@@ -89,11 +111,13 @@ const approveBooking = asyncHandler(async (req, res) => {
     message: 'Duyệt yêu cầu mượn phòng thành công'
   });
 });
-
+// Nhân viên từ chối yêu cầu đặt phòng
 const rejectBooking = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const { rejectionReason, staffNote } = req.body || {};
   const booking = await bookingService.rejectBooking(req.params.id, rejectionReason, staffNote, currentUser);
@@ -102,11 +126,13 @@ const rejectBooking = asyncHandler(async (req, res) => {
     message: 'Từ chối yêu cầu mượn phòng thành công'
   });
 });
-
+// Sinh viên hủy yêu cầu đặt phòng
 const cancelBooking = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const { studentNote } = req.body || {};
   const booking = await bookingService.cancelBooking(req.params.id, studentNote, currentUser);
@@ -115,11 +141,13 @@ const cancelBooking = asyncHandler(async (req, res) => {
     message: 'Hủy phiếu mượn phòng thành công'
   });
 });
-
+// Nhân viên check-in
 const checkInBooking = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const { staffNote } = req.body || {};
   const booking = await bookingService.checkInBooking(req.params.id, staffNote, currentUser);
@@ -128,11 +156,13 @@ const checkInBooking = asyncHandler(async (req, res) => {
     message: 'Xác nhận nhận phòng (check-in) thành công'
   });
 });
-
+// Nhân viên hoàn thành yêu cầu đặt phòng
 const completeBooking = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
   const booking = await bookingService.completeBooking(req.params.id, req.body || {}, currentUser);
   res.status(200).json({
@@ -140,15 +170,19 @@ const completeBooking = asyncHandler(async (req, res) => {
     message: 'Hoàn thành lượt sử dụng phòng thành công'
   });
 });
-
-const deleteBooking = asyncHandler(async (req, res) => {
+//
+const returnBookingEarly = asyncHandler(async (req, res) => {
   const currentUser = {
     userId: req.session.userId,
-    userType: req.session.userType
+    userType: req.session.userType,
+    role: req.session.role,
+    buildingId: req.session.buildingId
   };
-
-  await bookingService.deleteBooking(req.params.id, currentUser);
-  res.status(204).send();
+  const booking = await bookingService.returnBookingEarly(req.params.id, currentUser);
+  res.status(200).json({
+    data: booking,
+    message: 'Trả phòng học sớm thành công'
+  });
 });
 
 module.exports = {
@@ -157,10 +191,11 @@ module.exports = {
   getRoomSchedule,
   createBooking,
   updateBooking,
+  deleteBooking,
   approveBooking,
   rejectBooking,
   cancelBooking,
+  returnBookingEarly,
   checkInBooking,
-  completeBooking,
-  deleteBooking
+  completeBooking
 };

@@ -4,6 +4,7 @@ export const adminEquipmentService = {
   getEquipment(params = {}, signal) {
     const query = new URLSearchParams();
     if (params.search) query.append('search', params.search.trim());
+    if (params.buildingId) query.append('buildingId', params.buildingId);
     if (params.status) query.append('status', params.status);
     if (params.lowStock !== undefined && params.lowStock !== null && params.lowStock !== '') {
       query.append('lowStock', params.lowStock);
@@ -24,8 +25,11 @@ export const adminEquipmentService = {
     return api.get(`/equipment/${id}`, signal ? { signal } : undefined);
   },
 
-  getLowStockAlerts(signal) {
-    return api.get('/equipment/alerts/low-stock', signal ? { signal } : undefined);
+  getLowStockAlerts(params = {}, signal) {
+    const query = new URLSearchParams();
+    if (params.buildingId) query.append('buildingId', params.buildingId);
+    const queryString = query.toString();
+    return api.get(`/equipment/alerts/low-stock${queryString ? `?${queryString}` : ''}`, signal ? { signal } : undefined);
   },
 
   createEquipment(payload) {

@@ -55,6 +55,11 @@
           </div>
 
           <div class="specs-grid">
+            <div v-if="room.building" class="spec-item">
+              <span class="spec-label">Tòa nhà:</span>
+              <span class="spec-value font-bold text-brand">{{ room.building.name }} ({{ room.building.buildingCode }})</span>
+            </div>
+
             <div class="spec-item">
               <span class="spec-label">Vị trí:</span>
               <span class="spec-value">{{ room.location }}</span>
@@ -62,7 +67,7 @@
 
             <div class="spec-item">
               <span class="spec-label">Sức chứa:</span>
-              <span class="spec-value">{{ formatCapacity(room.capacity) }}</span>
+              <span class="spec-value">{{ formatCapacity(room.capacity, room.capacitySource, room.observedMinimumCapacity) }}</span>
             </div>
 
             <div class="spec-item">
@@ -134,7 +139,7 @@ const error = ref('');
 const selectedDate = ref(route.query.date || getTodayString());
 
 function isValidUrl(str) {
-  return typeof str === 'string' && (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('/'));
+  return typeof str === 'string' && (str.startsWith('http://') || str.startsWith('https://') || str.startsWith('/') || str.startsWith('data:image/'));
 }
 
 async function fetchRoomDetail() {

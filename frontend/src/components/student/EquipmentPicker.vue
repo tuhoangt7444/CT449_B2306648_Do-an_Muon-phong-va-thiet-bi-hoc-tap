@@ -2,7 +2,7 @@
   <div class="equipment-picker-card">
     <div class="picker-header">
       <h3 class="picker-title">Chọn Thiết Bị Đi Kèm (Tùy Chọn)</h3>
-      <p class="picker-subtitle">Số lượng khả dụng được tính chính xác cho khoảng thời gian mượn đã chọn</p>
+      <p class="picker-subtitle">Số lượng khả dụng được tính chính xác cho khoảng thời gian mượn đã chọn tại tòa nhà này</p>
     </div>
 
     <div v-if="loading" class="loading-wrapper">
@@ -15,7 +15,7 @@
     </div>
 
     <div v-else-if="equipmentList.length === 0" class="empty-wrapper">
-      <EmptyState title="Không có thiết bị khả dụng" description="Hiện tại không có thiết bị sẵn sàng trong khung giờ này." />
+      <EmptyState title="Không có thiết bị khả dụng" description="Hiện tại không có thiết bị sẵn sàng thuộc tòa nhà này trong khung giờ đã chọn." />
     </div>
 
     <div v-else class="equipment-grid">
@@ -82,20 +82,24 @@ const props = defineProps({
     type: String,
     required: true
   },
+  buildingId: {
+    type: String,
+    default: ''
+  },
   selectedEquipmentMap: {
     type: Object,
     default: () => ({})
   }
 });
 
-const emit = defineEmits(['update-equipment']);
+const emit = defineEmits(['update-equipment', 'equipment-loaded']);
 
 const loading = ref(false);
 const error = ref('');
 const equipmentList = ref([]);
 const selections = reactive({ ...props.selectedEquipmentMap });
 
-watch([() => props.startTimeISO, () => props.endTimeISO], () => {
+watch([() => props.startTimeISO, () => props.endTimeISO, () => props.buildingId], () => {
   fetchEquipment();
 });
 
@@ -104,14 +108,20 @@ async function fetchEquipment() {
   loading.value = true;
   error.value = '';
   try {
-    const res = await bookingService.getEquipment({
+    const params = {
       startTime: props.startTimeISO,
       endTime: props.endTimeISO,
       status: 'available',
       limit: 100
-    });
+    };
+    if (props.buildingId) {
+      params.buildingId = props.buildingId;
+    }
+
+    const res = await bookingService.getEquipment(params);
     if (res && res.data) {
       equipmentList.value = res.data;
+      emit('equipment-loaded', [...res.data]);
       adjustSelections();
     }
   } catch (err) {
@@ -167,7 +177,6 @@ onMounted(() => {
   border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: var(--shadow-sm);
-
 }
 
 .picker-header {

@@ -13,15 +13,14 @@ import MyBookingsView from '@/views/student/MyBookingsView.vue';
 import BookingDetailView from '@/views/student/BookingDetailView.vue';
 import ProfileView from '@/views/student/ProfileView.vue';
 
-import AdminLoginView from '@/views/auth/AdminLoginView.vue';
 import AdminDashboardView from '@/views/admin/AdminDashboardView.vue';
 import AdminBookingsView from '@/views/admin/AdminBookingsView.vue';
 import AdminBookingDetailView from '@/views/admin/AdminBookingDetailView.vue';
 import AdminRoomsView from '@/views/admin/AdminRoomsView.vue';
 import AdminEquipmentView from '@/views/admin/AdminEquipmentView.vue';
-import AdminStudentsView from '@/views/admin/AdminStudentsView.vue';
-import AdminCalendarView from '@/views/admin/AdminCalendarView.vue';
 import AdminReviewsView from '@/views/admin/AdminReviewsView.vue';
+import AdminBuildingsView from '@/views/admin/AdminBuildingsView.vue';
+import AdminBuildingManagersView from '@/views/admin/AdminBuildingManagersView.vue';
 
 import NotFoundView from '@/views/NotFoundView.vue';
 
@@ -42,9 +41,7 @@ const routes = [
   },
   {
     path: '/admin/login',
-    name: 'admin-login',
-    component: AdminLoginView,
-    meta: { guestOnly: true }
+    redirect: '/login'
   },
   {
     path: '/admin',
@@ -52,12 +49,12 @@ const routes = [
     meta: { requireStaff: true },
     children: [
       { path: '', name: 'admin-dashboard', component: AdminDashboardView },
+      { path: 'buildings', name: 'admin-buildings', component: AdminBuildingsView, meta: { requireSuperAdmin: true } },
+      { path: 'building-managers', name: 'admin-building-managers', component: AdminBuildingManagersView, meta: { requireSuperAdmin: true } },
       { path: 'bookings', name: 'admin-bookings', component: AdminBookingsView },
       { path: 'bookings/:id', name: 'admin-booking-detail', component: AdminBookingDetailView },
       { path: 'rooms', name: 'admin-rooms', component: AdminRoomsView },
       { path: 'equipment', name: 'admin-equipment', component: AdminEquipmentView },
-      { path: 'students', name: 'admin-students', component: AdminStudentsView },
-      { path: 'calendar', name: 'admin-calendar', component: AdminCalendarView },
       { path: 'reviews', name: 'admin-reviews', component: AdminReviewsView }
     ]
   },
@@ -93,9 +90,18 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
+  if (to.meta.requireSuperAdmin) {
+    if (!authStore.isAuthenticated) {
+      return next({ path: '/login', query: { redirect: to.fullPath } });
+    }
+    if (!authStore.isSuperAdmin) {
+      return next('/admin');
+    }
+  }
+
   if (to.meta.requireStaff) {
     if (!authStore.isAuthenticated) {
-      return next({ path: '/admin/login', query: { redirect: to.fullPath } });
+      return next({ path: '/login', query: { redirect: to.fullPath } });
     }
     if (!authStore.isStaff) {
       return next('/');
